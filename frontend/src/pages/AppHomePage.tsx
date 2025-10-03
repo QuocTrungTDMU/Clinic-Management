@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { authService } from "../lib/auth";
 
 export function AppHomePage() {
@@ -11,6 +12,19 @@ export function AppHomePage() {
     queryFn: authService.me,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Redirect users to their role-specific dashboards
+  useEffect(() => {
+    if (user && !isLoading) {
+      if (user.role_name === "doctor") {
+        navigate("/doctor/dashboard", { replace: true });
+      } else if (user.role_name === "admin") {
+        navigate("/admin/dashboard", { replace: true });
+      } else if (user.role_name === "receptionist") {
+        navigate("/receptionist/dashboard", { replace: true });
+      }
+    }
+  }, [user, isLoading, navigate]);
 
   const handleLogout = async () => {
     try {

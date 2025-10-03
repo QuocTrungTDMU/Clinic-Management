@@ -26,8 +26,8 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // For SPA authentication, we use Laravel's built-in Auth::login
-        Auth::login($user);
+        // Create Sanctum personal access token
+        $token = $user->createToken('clinic-spa')->plainTextToken;
 
         return response()->json([
             'user' => [
@@ -37,13 +37,15 @@ class AuthController extends Controller
                 'role_id' => $user->roles->first()?->id ?? null,
                 'role_name' => $user->roles->first()?->name ?? 'user',
             ],
+            'token' => $token,
             'message' => 'Login successful'
         ]);
     }
 
     public function logout(Request $request)
     {
-        Auth::logout();
+        // Delete all tokens for the user
+        $request->user()->tokens()->delete();
 
         return response()->json([
             'message' => 'Logged out successfully'
@@ -52,7 +54,7 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         if (!$user) {
             return response()->json([

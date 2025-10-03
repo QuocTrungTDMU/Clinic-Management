@@ -24,9 +24,17 @@ export function LoginPage() {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "admin@clinic.local",
-      password: "admin123",
+    // defaultValues: {
+    //   email: "admin@clinic.local",
+    //   password: "admin123",
+    // },
+    // defaultValues: {
+    //   email: "receptionist@clinic.com",
+    //   password: "password123",
+    // },
+     defaultValues: {
+      email: "doctor@clinic.local",
+      password: "doctor123",
     },
   });
 
