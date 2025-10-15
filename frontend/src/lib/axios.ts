@@ -11,6 +11,11 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
+    // Add auth token if it exists
+    const token = localStorage.getItem("clinic_auth_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {

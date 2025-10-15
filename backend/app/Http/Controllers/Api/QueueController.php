@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class QueueController extends Controller
@@ -185,5 +186,39 @@ class QueueController extends Controller
             ->where('status', 'checked_in')
             ->where('appointment_datetime', '<', $appointment->appointment_datetime)
             ->count() + 1;
+    }
+
+    /**
+     * Get patients in examination queue for doctors
+     */
+    public function getDoctorQueue(Request $request): JsonResponse
+    {
+        $doctorId = $request->query('doctor_id') ?? Auth::id();
+        
+        $patientsInQueue = Appointment::with(['patient'])
+            ->whereDate('appointment_datetime', Carbon::today())
+            ->where('doctor_id', $doctorId)
+            ->where('status', 'in_progress')
+            ->orderBy('appointment_datetime')
+            ->get()
+            ->map(function ($appointment) {
+                return [
+                    'appointment_id' => $appointment->id,
+                    'patient_id' => $appointment->patient->id,
+                    'patient_name' => $appointment->patient->name,
+                    'patient_phone' => $appointment->patient->phone,
+                    'patient_dob' => $appointment->patient->dob,
+                    'patient_gender' => $appointment->patient->gender,
+                    'appointment_time' => $appointment->appointment_datetime->format('H:i'),
+                    'appointment_type' => $appointment->appointment_type,
+                    'reason' => $appointment->reason,
+                    'checked_in_at' => $appointment->updated_at->toISOString(),
+                ];
+            });
+
+        return response()->json([
+            'patients' => $patientsInQueue,
+            'total_count' => $patientsInQueue->count()
+        ]);
     }
 }

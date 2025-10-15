@@ -52,7 +52,7 @@ const AppointmentsPage: React.FC = () => {
   const { data: patients = [] } = useQuery<Patient[]>({
     queryKey: ["patients-list"],
     queryFn: async () => {
-      const response = await api.get("/api/patients-list");
+      const response = await api.get("/patients-list");
       return response.data;
     },
   });
@@ -61,7 +61,7 @@ const AppointmentsPage: React.FC = () => {
   const { data: doctors = [] } = useQuery<Doctor[]>({
     queryKey: ["doctors"],
     queryFn: async () => {
-      const response = await api.get("/api/doctors");
+      const response = await api.get("/doctors");
       return response.data;
     },
   });
@@ -75,7 +75,7 @@ const AppointmentsPage: React.FC = () => {
 
   const fetchDoctorAvailability = async () => {
     try {
-      const response = await api.get("/api/doctor-availability", {
+      const response = await api.get("/doctor-availability", {
         params: {
           doctor_id: form.doctor_id,
           date: form.appointment_date,
@@ -91,7 +91,7 @@ const AppointmentsPage: React.FC = () => {
   // Create appointment mutation
   const createAppointmentMutation = useMutation({
     mutationFn: async (appointmentData: any) => {
-      const response = await api.post("/api/appointments", appointmentData);
+      const response = await api.post("/appointments", appointmentData);
       return response.data;
     },
     onSuccess: () => {

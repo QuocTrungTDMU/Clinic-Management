@@ -13,6 +13,7 @@ class Patient extends Model
         'name',
         'phone',
         'dob',
+        'gender',
         'address',
         'note',
     ];

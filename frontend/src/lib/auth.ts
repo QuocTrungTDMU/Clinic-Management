@@ -39,7 +39,7 @@ class AuthService {
 
   async login(credentials: LoginCredentials): Promise<User> {
     try {
-      const response = await api.post<LoginResponse>("/api/login", credentials);
+      const response = await api.post<LoginResponse>("/login", credentials);
 
       // Store token in localStorage
       this.setToken(response.data.token);
@@ -67,7 +67,7 @@ class AuthService {
         throw new Error("No authentication token found");
       }
 
-      const response = await api.get("/api/me");
+      const response = await api.get("/me");
       return response.data;
     } catch (error) {
       // If 401, clear token and re-throw
@@ -84,7 +84,7 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
-      await api.post("/api/logout");
+      await api.post("/logout");
     } catch (error) {
       console.warn("Logout request failed:", error);
     } finally {

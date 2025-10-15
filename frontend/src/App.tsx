@@ -5,11 +5,14 @@ import {
   Navigate,
 } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "react-hot-toast";
 import { queryClient } from "./lib/react-query";
 import { LoginPage } from "./pages/LoginPage";
 import { AppHomePage } from "./pages/AppHomePage";
 import { DoctorDashboardPage } from "./pages/doctor/DashboardPage";
 import { PatientListPage } from "./pages/doctor/PatientListPage";
+import { ExaminationPage } from "./pages/doctor/ExaminationPage";
+import { TestPage } from "./pages/doctor/TestPage";
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { DoctorManagementPage } from "./pages/admin/DoctorManagementPage";
 import ReceptionistDashboardPage from "./pages/receptionist/ReceptionistDashboardPage";
@@ -31,6 +34,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <Toaster position="top-right" />
       <Router>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -56,6 +60,30 @@ function App() {
             element={
               <Protected>
                 <PatientListPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="/doctor/examination"
+            element={
+              <Protected>
+                <ExaminationPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="/doctor/test"
+            element={
+              <Protected>
+                <TestPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="/doctor"
+            element={
+              <Protected>
+                <DoctorDashboardPage />
               </Protected>
             }
           />

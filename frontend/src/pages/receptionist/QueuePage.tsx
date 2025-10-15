@@ -50,7 +50,7 @@ const QueuePage: React.FC = () => {
   } = useQuery<QueueItem[]>({
     queryKey: ["queue", "today"],
     queryFn: async () => {
-      const response = await api.get("/api/queue/today");
+      const response = await api.get("/queue/today");
       return response.data;
     },
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -81,7 +81,7 @@ const QueuePage: React.FC = () => {
   // Check-in mutation
   const checkInMutation = useMutation({
     mutationFn: async (appointmentId: number) => {
-      const response = await api.post(`/api/queue/checkin/${appointmentId}`);
+      const response = await api.post(`/queue/checkin/${appointmentId}`);
       return response.data;
     },
     onSuccess: () => {
@@ -102,7 +102,7 @@ const QueuePage: React.FC = () => {
       appointmentId: number;
       status: string;
     }) => {
-      const response = await api.put(`/api/queue/status/${appointmentId}`, {
+      const response = await api.put(`/queue/status/${appointmentId}`, {
         status,
       });
       return response.data;
