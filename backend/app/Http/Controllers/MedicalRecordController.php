@@ -18,16 +18,16 @@ class MedicalRecordController extends Controller
     public function index(Request $request)
     {
         $patientId = $request->query('patient_id');
-        
+
         $query = MedicalRecord::with(['patient', 'doctor', 'appointment', 'prescriptions.items'])
             ->orderBy('created_at', 'desc');
-            
+
         if ($patientId) {
             $query->where('patient_id', $patientId);
         }
-        
+
         $medicalRecords = $query->paginate(10);
-        
+
         return response()->json($medicalRecords);
     }
 
@@ -47,7 +47,7 @@ class MedicalRecordController extends Controller
             'treatment_plan' => 'nullable|string',
             'follow_up_date' => 'nullable|date',
             'notes' => 'nullable|string',
-            
+
             // Prescription data
             'prescription' => 'nullable|array',
             'prescription.general_instructions' => 'nullable|string',
@@ -91,7 +91,7 @@ class MedicalRecordController extends Controller
             // Create prescription if provided
             if ($request->has('prescription') && !empty($request->prescription)) {
                 $prescriptionData = $request->prescription;
-                
+
                 $prescription = Prescription::create([
                     'medical_record_id' => $medicalRecord->id,
                     'patient_id' => $request->patient_id,
@@ -105,13 +105,13 @@ class MedicalRecordController extends Controller
                 // Create prescription items
                 if (!empty($prescriptionData['items'])) {
                     $totalCost = 0;
-                    
+
                     foreach ($prescriptionData['items'] as $item) {
                         $unitPrice = $item['unit_price'] ?? 0;
                         $quantity = $item['quantity'];
                         $totalPrice = $unitPrice * $quantity;
                         $totalCost += $totalPrice;
-                        
+
                         PrescriptionItem::create([
                             'prescription_id' => $prescription->id,
                             'medicine_name' => $item['medicine_name'],
@@ -131,7 +131,7 @@ class MedicalRecordController extends Controller
                             'after_meal' => $item['after_meal'] ?? false,
                         ]);
                     }
-                    
+
                     // Update prescription total cost
                     $prescription->update(['total_cost' => $totalCost]);
                 }
@@ -152,7 +152,6 @@ class MedicalRecordController extends Controller
                 'message' => 'Medical record created successfully',
                 'data' => $medicalRecord
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -168,7 +167,7 @@ class MedicalRecordController extends Controller
     public function show(MedicalRecord $medicalRecord)
     {
         $medicalRecord->load(['patient', 'doctor', 'appointment', 'prescriptions.items']);
-        
+
         return response()->json($medicalRecord);
     }
 

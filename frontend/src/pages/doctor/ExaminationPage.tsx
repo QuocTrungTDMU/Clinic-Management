@@ -84,8 +84,8 @@ export function ExaminationPage() {
       precautions: "",
       diet_advice: "",
       lifestyle_advice: "",
-      items: []
-    }
+      items: [],
+    },
   });
 
   // Fetch doctor's queue
@@ -112,7 +112,9 @@ export function ExaminationPage() {
       resetForm();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to create medical record");
+      toast.error(
+        error.response?.data?.message || "Failed to create medical record"
+      );
     },
   });
 
@@ -133,23 +135,23 @@ export function ExaminationPage() {
         precautions: "",
         diet_advice: "",
         lifestyle_advice: "",
-        items: []
-      }
+        items: [],
+      },
     });
   };
 
   const handleStartExamination = (patient: Patient) => {
     setSelectedPatient(patient);
-    setMedicalRecord(prev => ({
+    setMedicalRecord((prev) => ({
       ...prev,
       appointment_id: patient.appointment_id,
-      patient_id: patient.patient_id
+      patient_id: patient.patient_id,
     }));
     setShowExaminationForm(true);
   };
 
   const addPrescriptionItem = () => {
-    setMedicalRecord(prev => ({
+    setMedicalRecord((prev) => ({
       ...prev,
       prescription: {
         ...prev.prescription!,
@@ -169,37 +171,37 @@ export function ExaminationPage() {
             evening: false,
             before_meal: false,
             after_meal: false,
-          }
-        ]
-      }
+          },
+        ],
+      },
     }));
   };
 
   const removePrescriptionItem = (index: number) => {
-    setMedicalRecord(prev => ({
+    setMedicalRecord((prev) => ({
       ...prev,
       prescription: {
         ...prev.prescription!,
-        items: prev.prescription!.items.filter((_, i) => i !== index)
-      }
+        items: prev.prescription!.items.filter((_, i) => i !== index),
+      },
     }));
   };
 
   const updatePrescriptionItem = (index: number, field: string, value: any) => {
-    setMedicalRecord(prev => ({
+    setMedicalRecord((prev) => ({
       ...prev,
       prescription: {
         ...prev.prescription!,
-        items: prev.prescription!.items.map((item, i) => 
+        items: prev.prescription!.items.map((item, i) =>
           i === index ? { ...item, [field]: value } : item
-        )
-      }
+        ),
+      },
     }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
     if (!medicalRecord.chief_complaint || !medicalRecord.diagnosis) {
       toast.error("Chief complaint and diagnosis are required");
@@ -209,12 +211,16 @@ export function ExaminationPage() {
     // Filter out empty prescription items
     const filteredRecord = {
       ...medicalRecord,
-      prescription: medicalRecord.prescription && medicalRecord.prescription.items.length > 0 
-        ? {
-            ...medicalRecord.prescription,
-            items: medicalRecord.prescription.items.filter(item => item.medicine_name.trim() !== "")
-          }
-        : undefined
+      prescription:
+        medicalRecord.prescription &&
+        medicalRecord.prescription.items.length > 0
+          ? {
+              ...medicalRecord.prescription,
+              items: medicalRecord.prescription.items.filter(
+                (item) => item.medicine_name.trim() !== ""
+              ),
+            }
+          : undefined,
     };
 
     createMedicalRecordMutation.mutate(filteredRecord);
@@ -242,8 +248,18 @@ export function ExaminationPage() {
                 onClick={() => navigate("/doctor")}
                 className="text-gray-600 hover:text-gray-900"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
                 </svg>
               </button>
               <h1 className="text-xl font-semibold text-gray-900">
@@ -262,7 +278,9 @@ export function ExaminationPage() {
           // Patient Queue View
           <div className="px-4 py-6 sm:px-0">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Patient Queue</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                Patient Queue
+              </h2>
               <p className="mt-2 text-gray-600">
                 Select a patient to begin examination
               </p>
@@ -270,10 +288,22 @@ export function ExaminationPage() {
 
             {queueData?.patients?.length === 0 ? (
               <div className="bg-white rounded-lg shadow p-8 text-center">
-                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                <svg
+                  className="w-16 h-16 text-gray-400 mx-auto mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
                 </svg>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No patients in queue</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No patients in queue
+                </h3>
                 <p className="text-gray-500">
                   There are currently no patients waiting for examination.
                 </p>
@@ -287,8 +317,18 @@ export function ExaminationPage() {
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
                             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              <svg
+                                className="w-6 h-6 text-blue-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                />
                               </svg>
                             </div>
                           </div>
@@ -303,11 +343,18 @@ export function ExaminationPage() {
                             </div>
                             <div className="text-sm text-gray-500 space-y-1">
                               <p>Phone: {patient.patient_phone}</p>
-                              <p>DOB: {new Date(patient.patient_dob).toLocaleDateString()}</p>
+                              <p>
+                                DOB:{" "}
+                                {new Date(
+                                  patient.patient_dob
+                                ).toLocaleDateString()}
+                              </p>
                               <p>Gender: {patient.patient_gender}</p>
                               <p>Appointment: {patient.appointment_time}</p>
                               <p>Type: {patient.appointment_type}</p>
-                              {patient.reason && <p>Reason: {patient.reason}</p>}
+                              {patient.reason && (
+                                <p>Reason: {patient.reason}</p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -347,8 +394,18 @@ export function ExaminationPage() {
                   }}
                   className="text-gray-600 hover:text-gray-900"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
@@ -367,21 +424,31 @@ export function ExaminationPage() {
                     </label>
                     <textarea
                       value={medicalRecord.chief_complaint}
-                      onChange={(e) => setMedicalRecord(prev => ({ ...prev, chief_complaint: e.target.value }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          chief_complaint: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
                       placeholder="Patient's main concern or reason for visit"
                       required
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Symptoms
                     </label>
                     <textarea
                       value={medicalRecord.symptoms}
-                      onChange={(e) => setMedicalRecord(prev => ({ ...prev, symptoms: e.target.value }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          symptoms: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
                       placeholder="Detailed symptoms description"
@@ -394,7 +461,12 @@ export function ExaminationPage() {
                     </label>
                     <textarea
                       value={medicalRecord.physical_examination}
-                      onChange={(e) => setMedicalRecord(prev => ({ ...prev, physical_examination: e.target.value }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          physical_examination: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
                       placeholder="Physical examination findings"
@@ -407,7 +479,12 @@ export function ExaminationPage() {
                     </label>
                     <textarea
                       value={medicalRecord.diagnosis}
-                      onChange={(e) => setMedicalRecord(prev => ({ ...prev, diagnosis: e.target.value }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          diagnosis: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
                       placeholder="Medical diagnosis"
@@ -421,7 +498,12 @@ export function ExaminationPage() {
                     </label>
                     <textarea
                       value={medicalRecord.treatment_plan}
-                      onChange={(e) => setMedicalRecord(prev => ({ ...prev, treatment_plan: e.target.value }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          treatment_plan: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
                       placeholder="Recommended treatment plan"
@@ -435,7 +517,12 @@ export function ExaminationPage() {
                     <input
                       type="date"
                       value={medicalRecord.follow_up_date}
-                      onChange={(e) => setMedicalRecord(prev => ({ ...prev, follow_up_date: e.target.value }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          follow_up_date: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -447,7 +534,12 @@ export function ExaminationPage() {
                   </label>
                   <textarea
                     value={medicalRecord.notes}
-                    onChange={(e) => setMedicalRecord(prev => ({ ...prev, notes: e.target.value }))}
+                    onChange={(e) =>
+                      setMedicalRecord((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
                     placeholder="Additional notes or observations"
@@ -468,15 +560,20 @@ export function ExaminationPage() {
                     <input
                       type="text"
                       value={medicalRecord.vital_signs.temperature || ""}
-                      onChange={(e) => setMedicalRecord(prev => ({
-                        ...prev,
-                        vital_signs: { ...prev.vital_signs, temperature: e.target.value }
-                      }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            temperature: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="36.5"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Blood Pressure
@@ -484,10 +581,15 @@ export function ExaminationPage() {
                     <input
                       type="text"
                       value={medicalRecord.vital_signs.blood_pressure || ""}
-                      onChange={(e) => setMedicalRecord(prev => ({
-                        ...prev,
-                        vital_signs: { ...prev.vital_signs, blood_pressure: e.target.value }
-                      }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            blood_pressure: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="120/80"
                     />
@@ -500,10 +602,15 @@ export function ExaminationPage() {
                     <input
                       type="text"
                       value={medicalRecord.vital_signs.heart_rate || ""}
-                      onChange={(e) => setMedicalRecord(prev => ({
-                        ...prev,
-                        vital_signs: { ...prev.vital_signs, heart_rate: e.target.value }
-                      }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            heart_rate: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="72"
                     />
@@ -516,10 +623,15 @@ export function ExaminationPage() {
                     <input
                       type="text"
                       value={medicalRecord.vital_signs.respiratory_rate || ""}
-                      onChange={(e) => setMedicalRecord(prev => ({
-                        ...prev,
-                        vital_signs: { ...prev.vital_signs, respiratory_rate: e.target.value }
-                      }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            respiratory_rate: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="16"
                     />
@@ -532,10 +644,15 @@ export function ExaminationPage() {
                     <input
                       type="text"
                       value={medicalRecord.vital_signs.weight || ""}
-                      onChange={(e) => setMedicalRecord(prev => ({
-                        ...prev,
-                        vital_signs: { ...prev.vital_signs, weight: e.target.value }
-                      }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            weight: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="70"
                     />
@@ -548,10 +665,15 @@ export function ExaminationPage() {
                     <input
                       type="text"
                       value={medicalRecord.vital_signs.height || ""}
-                      onChange={(e) => setMedicalRecord(prev => ({
-                        ...prev,
-                        vital_signs: { ...prev.vital_signs, height: e.target.value }
-                      }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            height: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="170"
                     />
@@ -581,14 +703,18 @@ export function ExaminationPage() {
                       General Instructions
                     </label>
                     <textarea
-                      value={medicalRecord.prescription?.general_instructions || ""}
-                      onChange={(e) => setMedicalRecord(prev => ({
-                        ...prev,
-                        prescription: {
-                          ...prev.prescription!,
-                          general_instructions: e.target.value
-                        }
-                      }))}
+                      value={
+                        medicalRecord.prescription?.general_instructions || ""
+                      }
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          prescription: {
+                            ...prev.prescription!,
+                            general_instructions: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={2}
                       placeholder="General instructions for patient"
@@ -601,13 +727,15 @@ export function ExaminationPage() {
                     </label>
                     <textarea
                       value={medicalRecord.prescription?.precautions || ""}
-                      onChange={(e) => setMedicalRecord(prev => ({
-                        ...prev,
-                        prescription: {
-                          ...prev.prescription!,
-                          precautions: e.target.value
-                        }
-                      }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          prescription: {
+                            ...prev.prescription!,
+                            precautions: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={2}
                       placeholder="Important precautions"
@@ -620,13 +748,15 @@ export function ExaminationPage() {
                     </label>
                     <textarea
                       value={medicalRecord.prescription?.diet_advice || ""}
-                      onChange={(e) => setMedicalRecord(prev => ({
-                        ...prev,
-                        prescription: {
-                          ...prev.prescription!,
-                          diet_advice: e.target.value
-                        }
-                      }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          prescription: {
+                            ...prev.prescription!,
+                            diet_advice: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={2}
                       placeholder="Dietary recommendations"
@@ -639,13 +769,15 @@ export function ExaminationPage() {
                     </label>
                     <textarea
                       value={medicalRecord.prescription?.lifestyle_advice || ""}
-                      onChange={(e) => setMedicalRecord(prev => ({
-                        ...prev,
-                        prescription: {
-                          ...prev.prescription!,
-                          lifestyle_advice: e.target.value
-                        }
-                      }))}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          prescription: {
+                            ...prev.prescription!,
+                            lifestyle_advice: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={2}
                       placeholder="Lifestyle recommendations"
@@ -655,7 +787,10 @@ export function ExaminationPage() {
 
                 {/* Medicine Items */}
                 {medicalRecord.prescription?.items.map((item, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
+                  <div
+                    key={index}
+                    className="border border-gray-200 rounded-lg p-4 mb-4"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-md font-medium text-gray-900">
                         Medicine #{index + 1}
@@ -665,8 +800,18 @@ export function ExaminationPage() {
                         onClick={() => removePrescriptionItem(index)}
                         className="text-red-600 hover:text-red-800"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
                         </svg>
                       </button>
                     </div>
@@ -679,7 +824,13 @@ export function ExaminationPage() {
                         <input
                           type="text"
                           value={item.medicine_name}
-                          onChange={(e) => updatePrescriptionItem(index, "medicine_name", e.target.value)}
+                          onChange={(e) =>
+                            updatePrescriptionItem(
+                              index,
+                              "medicine_name",
+                              e.target.value
+                            )
+                          }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Medicine name"
                         />
@@ -692,7 +843,13 @@ export function ExaminationPage() {
                         <input
                           type="text"
                           value={item.strength || ""}
-                          onChange={(e) => updatePrescriptionItem(index, "strength", e.target.value)}
+                          onChange={(e) =>
+                            updatePrescriptionItem(
+                              index,
+                              "strength",
+                              e.target.value
+                            )
+                          }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="e.g., 500mg"
                         />
@@ -705,7 +862,13 @@ export function ExaminationPage() {
                         <input
                           type="text"
                           value={item.dosage}
-                          onChange={(e) => updatePrescriptionItem(index, "dosage", e.target.value)}
+                          onChange={(e) =>
+                            updatePrescriptionItem(
+                              index,
+                              "dosage",
+                              e.target.value
+                            )
+                          }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="e.g., 1 tablet"
                         />
@@ -718,7 +881,13 @@ export function ExaminationPage() {
                         <input
                           type="text"
                           value={item.frequency}
-                          onChange={(e) => updatePrescriptionItem(index, "frequency", e.target.value)}
+                          onChange={(e) =>
+                            updatePrescriptionItem(
+                              index,
+                              "frequency",
+                              e.target.value
+                            )
+                          }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="e.g., 3 times daily"
                         />
@@ -731,7 +900,13 @@ export function ExaminationPage() {
                         <input
                           type="text"
                           value={item.duration}
-                          onChange={(e) => updatePrescriptionItem(index, "duration", e.target.value)}
+                          onChange={(e) =>
+                            updatePrescriptionItem(
+                              index,
+                              "duration",
+                              e.target.value
+                            )
+                          }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="e.g., 7 days"
                         />
@@ -744,7 +919,13 @@ export function ExaminationPage() {
                         <input
                           type="number"
                           value={item.quantity}
-                          onChange={(e) => updatePrescriptionItem(index, "quantity", parseInt(e.target.value) || 1)}
+                          onChange={(e) =>
+                            updatePrescriptionItem(
+                              index,
+                              "quantity",
+                              parseInt(e.target.value) || 1
+                            )
+                          }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           min="1"
                         />
@@ -757,7 +938,13 @@ export function ExaminationPage() {
                       </label>
                       <textarea
                         value={item.instructions || ""}
-                        onChange={(e) => updatePrescriptionItem(index, "instructions", e.target.value)}
+                        onChange={(e) =>
+                          updatePrescriptionItem(
+                            index,
+                            "instructions",
+                            e.target.value
+                          )
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         rows={2}
                         placeholder="Special instructions for this medicine"
@@ -774,7 +961,13 @@ export function ExaminationPage() {
                           <input
                             type="checkbox"
                             checked={item.morning}
-                            onChange={(e) => updatePrescriptionItem(index, "morning", e.target.checked)}
+                            onChange={(e) =>
+                              updatePrescriptionItem(
+                                index,
+                                "morning",
+                                e.target.checked
+                              )
+                            }
                             className="mr-2"
                           />
                           Morning
@@ -783,7 +976,13 @@ export function ExaminationPage() {
                           <input
                             type="checkbox"
                             checked={item.afternoon}
-                            onChange={(e) => updatePrescriptionItem(index, "afternoon", e.target.checked)}
+                            onChange={(e) =>
+                              updatePrescriptionItem(
+                                index,
+                                "afternoon",
+                                e.target.checked
+                              )
+                            }
                             className="mr-2"
                           />
                           Afternoon
@@ -792,7 +991,13 @@ export function ExaminationPage() {
                           <input
                             type="checkbox"
                             checked={item.evening}
-                            onChange={(e) => updatePrescriptionItem(index, "evening", e.target.checked)}
+                            onChange={(e) =>
+                              updatePrescriptionItem(
+                                index,
+                                "evening",
+                                e.target.checked
+                              )
+                            }
                             className="mr-2"
                           />
                           Evening
@@ -801,7 +1006,13 @@ export function ExaminationPage() {
                           <input
                             type="checkbox"
                             checked={item.before_meal}
-                            onChange={(e) => updatePrescriptionItem(index, "before_meal", e.target.checked)}
+                            onChange={(e) =>
+                              updatePrescriptionItem(
+                                index,
+                                "before_meal",
+                                e.target.checked
+                              )
+                            }
                             className="mr-2"
                           />
                           Before Meal
@@ -810,7 +1021,13 @@ export function ExaminationPage() {
                           <input
                             type="checkbox"
                             checked={item.after_meal}
-                            onChange={(e) => updatePrescriptionItem(index, "after_meal", e.target.checked)}
+                            onChange={(e) =>
+                              updatePrescriptionItem(
+                                index,
+                                "after_meal",
+                                e.target.checked
+                              )
+                            }
                             className="mr-2"
                           />
                           After Meal
@@ -822,11 +1039,24 @@ export function ExaminationPage() {
 
                 {medicalRecord.prescription?.items.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
-                    <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    <svg
+                      className="w-12 h-12 mx-auto mb-4 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+                      />
                     </svg>
                     <p>No medicines added yet.</p>
-                    <p className="text-sm">Click "Add Medicine" to add medications to the prescription.</p>
+                    <p className="text-sm">
+                      Click "Add Medicine" to add medications to the
+                      prescription.
+                    </p>
                   </div>
                 )}
               </div>
@@ -849,7 +1079,9 @@ export function ExaminationPage() {
                   disabled={createMedicalRecordMutation.isPending}
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
-                  {createMedicalRecordMutation.isPending ? "Saving..." : "Complete Examination"}
+                  {createMedicalRecordMutation.isPending
+                    ? "Saving..."
+                    : "Complete Examination"}
                 </button>
               </div>
             </form>

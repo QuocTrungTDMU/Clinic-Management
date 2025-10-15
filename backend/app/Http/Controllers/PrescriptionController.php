@@ -17,20 +17,20 @@ class PrescriptionController extends Controller
     {
         $patientId = $request->query('patient_id');
         $doctorId = $request->query('doctor_id');
-        
+
         $query = Prescription::with(['patient', 'doctor', 'medicalRecord', 'items'])
             ->orderBy('created_at', 'desc');
-            
+
         if ($patientId) {
             $query->where('patient_id', $patientId);
         }
-        
+
         if ($doctorId) {
             $query->where('doctor_id', $doctorId);
         }
-        
+
         $prescriptions = $query->paginate(10);
-        
+
         return response()->json($prescriptions);
     }
 
@@ -78,13 +78,13 @@ class PrescriptionController extends Controller
 
             // Create prescription items
             $totalCost = 0;
-            
+
             foreach ($request->items as $item) {
                 $unitPrice = $item['unit_price'] ?? 0;
                 $quantity = $item['quantity'];
                 $totalPrice = $unitPrice * $quantity;
                 $totalCost += $totalPrice;
-                
+
                 PrescriptionItem::create([
                     'prescription_id' => $prescription->id,
                     'medicine_name' => $item['medicine_name'],
@@ -104,7 +104,7 @@ class PrescriptionController extends Controller
                     'after_meal' => $item['after_meal'] ?? false,
                 ]);
             }
-            
+
             // Update prescription total cost
             $prescription->update(['total_cost' => $totalCost]);
 
@@ -117,7 +117,6 @@ class PrescriptionController extends Controller
                 'message' => 'Prescription created successfully',
                 'data' => $prescription
             ], 201);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -133,7 +132,7 @@ class PrescriptionController extends Controller
     public function show(Prescription $prescription)
     {
         $prescription->load(['patient', 'doctor', 'medicalRecord', 'items']);
-        
+
         return response()->json($prescription);
     }
 
@@ -171,7 +170,7 @@ class PrescriptionController extends Controller
     {
         // Delete related prescription items first
         $prescription->items()->delete();
-        
+
         // Delete the prescription
         $prescription->delete();
 
@@ -202,7 +201,7 @@ class PrescriptionController extends Controller
     public function getPrintData(Prescription $prescription)
     {
         $prescription->load(['patient', 'doctor', 'medicalRecord', 'items']);
-        
+
         $printData = [
             'prescription' => $prescription,
             'clinic_info' => [

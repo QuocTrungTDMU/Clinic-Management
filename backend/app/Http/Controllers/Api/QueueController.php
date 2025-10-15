@@ -194,7 +194,7 @@ class QueueController extends Controller
     public function getDoctorQueue(Request $request): JsonResponse
     {
         $doctorId = $request->query('doctor_id') ?? Auth::id();
-        
+
         $patientsInQueue = Appointment::with(['patient'])
             ->whereDate('appointment_datetime', Carbon::today())
             ->where('doctor_id', $doctorId)

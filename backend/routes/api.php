@@ -35,13 +35,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/queue/status/{appointmentId}', [QueueController::class, 'updateStatus']);
     Route::get('/queue/stats', [QueueController::class, 'getQueueStats']);
     Route::get('/queue/waiting', [QueueController::class, 'getWaitingQueue']);
-    
+
     // Doctor Queue - get patients in examination queue
     Route::get('/doctor/queue', [QueueController::class, 'getDoctorQueue']);
 
     // Medical Records routes
     Route::apiResource('medical-records', MedicalRecordController::class);
-    
+
     // Prescription routes
     Route::apiResource('prescriptions', PrescriptionController::class);
     Route::put('/prescriptions/{prescription}/print', [PrescriptionController::class, 'markAsPrinted']);
