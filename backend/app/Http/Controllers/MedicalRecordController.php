@@ -217,4 +217,48 @@ class MedicalRecordController extends Controller
             'message' => 'Medical record deleted successfully'
         ]);
     }
+
+    /**
+     * Get patient's medical history
+     */
+    public function getPatientMedicalHistory($patientId)
+    {
+        $medicalRecords = MedicalRecord::with(['doctor', 'appointment', 'prescriptions.items'])
+            ->where('patient_id', $patientId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($record) {
+                return [
+                    'id' => $record->id,
+                    'visit_date' => $record->created_at->format('Y-m-d'),
+                    'doctor_name' => $record->doctor->name,
+                    'chief_complaint' => $record->chief_complaint,
+                    'diagnosis' => $record->diagnosis,
+                    'treatment_plan' => $record->treatment_plan,
+                    'vital_signs' => $record->vital_signs,
+                    'prescriptions' => $record->prescriptions->map(function ($prescription) {
+                        return [
+                            'id' => $prescription->id,
+                            'medications' => $prescription->items->map(function ($item) {
+                                return [
+                                    'medicine_name' => $item->medicine_name,
+                                    'strength' => $item->strength,
+                                    'dosage' => $item->dosage,
+                                    'frequency' => $item->frequency,
+                                    'duration' => $item->duration,
+                                ];
+                            }),
+                            'general_instructions' => $prescription->general_instructions,
+                        ];
+                    }),
+                    'full_record' => $record, // Include full record for detailed view
+                ];
+            });
+
+        return response()->json([
+            'patient_id' => $patientId,
+            'total_visits' => $medicalRecords->count(),
+            'medical_history' => $medicalRecords
+        ]);
+    }
 }

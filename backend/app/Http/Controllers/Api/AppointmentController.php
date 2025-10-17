@@ -245,6 +245,12 @@ class AppointmentController extends Controller
         $query = Appointment::with(['patient', 'doctor', 'createdBy'])
             ->orderBy('appointment_datetime', 'desc');
 
+        // By default, only show completed, cancelled, or no_show appointments for history
+        // Unless specific status is requested
+        if (!$request->has('status')) {
+            $query->whereIn('status', ['completed', 'cancelled', 'no_show']);
+        }
+
         // Search by patient name or phone
         if ($request->has('search')) {
             $search = $request->search;
@@ -269,7 +275,7 @@ class AppointmentController extends Controller
             $query->where('doctor_id', $request->doctor_id);
         }
 
-        // Filter by status
+        // Filter by status (if explicitly provided)
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }

@@ -1,4 +1,7 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import api from "../../lib/axios";
 import { UserIcon, PhoneIcon, HeartIcon } from "@heroicons/react/24/outline";
 
 interface PatientForm {
@@ -18,6 +21,7 @@ interface PatientForm {
 }
 
 const RegisterPatientPage: React.FC = () => {
+  const navigate = useNavigate();
   const [form, setForm] = useState<PatientForm>({
     fullName: "",
     dateOfBirth: "",
@@ -53,11 +57,27 @@ const RegisterPatientPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      // TODO: API call to register patient
-      console.log("Registering patient:", form);
+      // Map form fields to backend API format
+      const patientData = {
+        name: form.fullName,
+        dob: form.dateOfBirth,
+        gender: form.gender,
+        phone: form.phone,
+        address: form.address,
+        note: `Email: ${form.email || "N/A"}\nID: ${
+          form.idNumber || "N/A"
+        }\nNhóm máu: ${form.bloodType || "N/A"}\nDị ứng: ${
+          form.allergies || "Không"
+        }\nTiền sử: ${
+          form.medicalHistory || "Không"
+        }\nNgười liên hệ khẩn cấp: ${form.emergencyContactName || "N/A"} - ${
+          form.emergencyContactPhone || "N/A"
+        } (${form.emergencyContactRelation || "N/A"})`,
+      };
 
-      // Mock success
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await api.post("/patients", patientData);
+
+      toast.success("Đăng ký bệnh nhân thành công!");
 
       // Reset form after successful registration
       setForm({
@@ -76,10 +96,13 @@ const RegisterPatientPage: React.FC = () => {
         emergencyContactRelation: "",
       });
 
-      alert("Đăng ký bệnh nhân thành công!");
-    } catch (error) {
+      setTimeout(() => navigate("/receptionist/dashboard"), 1500);
+    } catch (error: unknown) {
       console.error("Error registering patient:", error);
-      alert("Có lỗi xảy ra khi đăng ký bệnh nhân");
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(
+        err.response?.data?.message || "Có lỗi xảy ra khi đăng ký bệnh nhân"
+      );
     } finally {
       setIsSubmitting(false);
     }

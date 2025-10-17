@@ -13,10 +13,11 @@ class QueueController extends Controller
 {
     public function getTodayQueue(): JsonResponse
     {
-        $today = Carbon::today();
+        $today = Carbon::today()->format('Y-m-d');
 
         $appointments = Appointment::with(['patient', 'doctor'])
             ->whereDate('appointment_datetime', $today)
+            ->whereNotIn('status', ['cancelled', 'no_show']) // Exclude cancelled and no_show
             ->orderBy('appointment_datetime')
             ->get()
             ->map(function ($appointment) {

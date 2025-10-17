@@ -1,8 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import api from "../../lib/axios";
+import PatientHistoryModal from "../../components/PatientHistoryModal";
+import {
+  chiefComplaints,
+  diagnoses,
+  physicalExamFindings,
+  normalVitalSigns,
+} from "../../data/medicalOptions";
 
 interface Patient {
   appointment_id: number;
@@ -45,6 +52,7 @@ interface MedicalRecordData {
 }
 
 interface PrescriptionItem {
+  medicine_id?: number;
   medicine_name: string;
   medicine_type?: string;
   strength?: string;
@@ -61,11 +69,54 @@ interface PrescriptionItem {
   after_meal: boolean;
 }
 
+interface Medicine {
+  id: number;
+  name: string;
+  medicine_type: string;
+  strength: string;
+  unit: string;
+  selling_price: number;
+  stock_quantity: number;
+  usage_instructions: string;
+}
+
 export function ExaminationPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showExaminationForm, setShowExaminationForm] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyPatientId, setHistoryPatientId] = useState<number | null>(null);
+
+  // Quick selection states
+  const [useCustomComplaint, setUseCustomComplaint] = useState(false);
+  const [useCustomDiagnosis, setUseCustomDiagnosis] = useState(false);
+  const [useCustomPhysicalExam, setUseCustomPhysicalExam] = useState(false);
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [selectedFindings, setSelectedFindings] = useState<string[]>([]);
+
+  // Medicine search states
+  const [medicineSearchResults, setMedicineSearchResults] = useState<
+    Medicine[]
+  >([]);
+  const [showMedicineDropdown, setShowMedicineDropdown] = useState<
+    number | null
+  >(null);
+
+  // Close medicine dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowMedicineDropdown(null);
+    };
+
+    if (showMedicineDropdown !== null) {
+      document.addEventListener("click", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [showMedicineDropdown]);
 
   // Medical record form state
   const [medicalRecord, setMedicalRecord] = useState<MedicalRecordData>({
@@ -96,6 +147,19 @@ export function ExaminationPage() {
       return response.data;
     },
     refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  // Fetch patient medical history
+  const { data: patientHistory } = useQuery({
+    queryKey: ["patient-history", historyPatientId],
+    queryFn: async () => {
+      if (!historyPatientId) return null;
+      const response = await api.get(
+        `/patients/${historyPatientId}/medical-records`
+      );
+      return response.data;
+    },
+    enabled: !!historyPatientId,
   });
 
   // Create medical record mutation
@@ -138,8 +202,104 @@ export function ExaminationPage() {
         items: [],
       },
     });
+    setUseCustomComplaint(false);
+    setUseCustomDiagnosis(false);
+    setUseCustomPhysicalExam(false);
+    setSelectedSymptoms([]);
+    setSelectedFindings([]);
   };
 
+  // Apply normal vital signs
+  const applyNormalVitalSigns = () => {
+    setMedicalRecord((prev) => ({
+      ...prev,
+      vital_signs: { ...normalVitalSigns },
+    }));
+    toast.success("Normal vital signs applied");
+  };
+
+  // Toggle symptom selection
+  const toggleSymptom = (symptom: string) => {
+    setSelectedSymptoms((prev) => {
+      const newSymptoms = prev.includes(symptom)
+        ? prev.filter((s) => s !== symptom)
+        : [...prev, symptom];
+
+      // Update chief complaint
+      setMedicalRecord((prevRecord) => ({
+        ...prevRecord,
+        chief_complaint: newSymptoms.join(", "),
+      }));
+
+      return newSymptoms;
+    });
+  };
+
+  // Toggle physical finding selection
+  const toggleFinding = (finding: string) => {
+    setSelectedFindings((prev) => {
+      const newFindings = prev.includes(finding)
+        ? prev.filter((f) => f !== finding)
+        : [...prev, finding];
+
+      // Update physical examination
+      setMedicalRecord((prevRecord) => ({
+        ...prevRecord,
+        physical_examination: newFindings.join(", "),
+      }));
+
+      return newFindings;
+    });
+  };
+
+  // Search medicines from API
+  const searchMedicines = async (query: string, index: number) => {
+    if (query.length < 2) {
+      setMedicineSearchResults([]);
+      setShowMedicineDropdown(null);
+      return;
+    }
+
+    try {
+      const response = await api.get(`/medicines/search?q=${query}`);
+      setMedicineSearchResults(response.data);
+      setShowMedicineDropdown(index);
+    } catch (error) {
+      console.error("Failed to search medicines:", error);
+      setMedicineSearchResults([]);
+    }
+  };
+
+  // Select medicine from dropdown
+  const selectMedicine = (medicine: Medicine, index: number) => {
+    setMedicalRecord((prev) => ({
+      ...prev,
+      prescription: {
+        ...prev.prescription!,
+        items: prev.prescription!.items.map((item, i) =>
+          i === index
+            ? {
+                ...item,
+                medicine_id: medicine.id,
+                medicine_name: medicine.name,
+                medicine_type: medicine.medicine_type,
+                strength: medicine.strength,
+                unit_price: medicine.selling_price,
+                instructions: medicine.usage_instructions || item.instructions,
+              }
+            : item
+        ),
+      },
+    }));
+
+    setShowMedicineDropdown(null);
+    setMedicineSearchResults([]);
+
+    // Show success toast
+    toast.success(
+      `Selected: ${medicine.name} (Stock: ${medicine.stock_quantity})`
+    );
+  };
   const handleStartExamination = (patient: Patient) => {
     setSelectedPatient(patient);
     setMedicalRecord((prev) => ({
@@ -148,6 +308,11 @@ export function ExaminationPage() {
       patient_id: patient.patient_id,
     }));
     setShowExaminationForm(true);
+  };
+
+  const handleViewHistory = (patientId: number) => {
+    setHistoryPatientId(patientId);
+    setShowHistoryModal(true);
   };
 
   const addPrescriptionItem = () => {
@@ -360,6 +525,14 @@ export function ExaminationPage() {
                         </div>
                         <div className="flex items-center space-x-3">
                           <button
+                            onClick={() =>
+                              handleViewHistory(patient.patient_id)
+                            }
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            View History
+                          </button>
+                          <button
                             onClick={() => handleStartExamination(patient)}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                           >
@@ -418,28 +591,84 @@ export function ExaminationPage() {
                   Examination Details
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Chief Complaint *
-                    </label>
-                    <textarea
-                      value={medicalRecord.chief_complaint}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          chief_complaint: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="Patient's main concern or reason for visit"
-                      required
-                    />
+                  {/* Chief Complaint with Quick Selection */}
+                  <div className="md:col-span-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Chief Complaint *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setUseCustomComplaint(!useCustomComplaint)
+                        }
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        {useCustomComplaint
+                          ? "Use Quick Select"
+                          : "Custom Input"}
+                      </button>
+                    </div>
+
+                    {!useCustomComplaint ? (
+                      <div className="space-y-3">
+                        {chiefComplaints.map((category) => (
+                          <div
+                            key={category.category}
+                            className="border border-gray-200 rounded-lg p-3"
+                          >
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">
+                              {category.category}
+                            </h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {category.symptoms.map((symptom) => (
+                                <label
+                                  key={symptom}
+                                  className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedSymptoms.includes(symptom)}
+                                    onChange={() => toggleSymptom(symptom)}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                  <span className="text-gray-700">
+                                    {symptom}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                        {selectedSymptoms.length > 0 && (
+                          <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                            <p className="text-sm text-blue-800">
+                              <strong>Selected:</strong>{" "}
+                              {selectedSymptoms.join(", ")}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <textarea
+                        value={medicalRecord.chief_complaint}
+                        onChange={(e) =>
+                          setMedicalRecord((prev) => ({
+                            ...prev,
+                            chief_complaint: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows={3}
+                        placeholder="Patient's main concern or reason for visit"
+                        required
+                      />
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Symptoms
+                      Symptoms (Optional)
                     </label>
                     <textarea
                       value={medicalRecord.symptoms}
@@ -451,45 +680,143 @@ export function ExaminationPage() {
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
-                      placeholder="Detailed symptoms description"
+                      placeholder="Additional detailed symptoms"
                     />
                   </div>
 
+                  {/* Physical Examination with Quick Selection */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Physical Examination
-                    </label>
-                    <textarea
-                      value={medicalRecord.physical_examination}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          physical_examination: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="Physical examination findings"
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Physical Examination
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setUseCustomPhysicalExam(!useCustomPhysicalExam)
+                        }
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        {useCustomPhysicalExam
+                          ? "Use Quick Select"
+                          : "Custom Input"}
+                      </button>
+                    </div>
+
+                    {!useCustomPhysicalExam ? (
+                      <div className="space-y-2">
+                        {physicalExamFindings.map((system) => (
+                          <div
+                            key={system.system}
+                            className="border border-gray-200 rounded p-2"
+                          >
+                            <h5 className="text-xs font-medium text-gray-600 mb-1">
+                              {system.system}
+                            </h5>
+                            <div className="flex flex-wrap gap-2">
+                              {system.findings.map((finding) => (
+                                <label
+                                  key={finding}
+                                  className="flex items-center space-x-1 text-xs cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedFindings.includes(finding)}
+                                    onChange={() => toggleFinding(finding)}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                  <span>{finding}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                        {selectedFindings.length > 0 && (
+                          <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                            <p className="text-xs text-green-800">
+                              <strong>Findings:</strong>{" "}
+                              {selectedFindings.join(", ")}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <textarea
+                        value={medicalRecord.physical_examination}
+                        onChange={(e) =>
+                          setMedicalRecord((prev) => ({
+                            ...prev,
+                            physical_examination: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows={3}
+                        placeholder="Physical examination findings"
+                      />
+                    )}
                   </div>
 
+                  {/* Diagnosis with Dropdown */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Diagnosis *
-                    </label>
-                    <textarea
-                      value={medicalRecord.diagnosis}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          diagnosis: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="Medical diagnosis"
-                      required
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Diagnosis *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setUseCustomDiagnosis(!useCustomDiagnosis)
+                        }
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        {useCustomDiagnosis
+                          ? "Use Quick Select"
+                          : "Custom Input"}
+                      </button>
+                    </div>
+
+                    {!useCustomDiagnosis ? (
+                      <select
+                        value={medicalRecord.diagnosis}
+                        onChange={(e) =>
+                          setMedicalRecord((prev) => ({
+                            ...prev,
+                            diagnosis: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="">Select diagnosis...</option>
+                        {diagnoses.map((category) => (
+                          <optgroup
+                            key={category.category}
+                            label={category.category}
+                          >
+                            {category.diagnoses.map((diagnosis) => (
+                              <option key={diagnosis} value={diagnosis}>
+                                {diagnosis}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                        <option value="__custom__">Other (Custom input)</option>
+                      </select>
+                    ) : (
+                      <textarea
+                        value={medicalRecord.diagnosis}
+                        onChange={(e) =>
+                          setMedicalRecord((prev) => ({
+                            ...prev,
+                            diagnosis: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows={3}
+                        placeholder="Enter custom diagnosis"
+                        required
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -549,9 +876,18 @@ export function ExaminationPage() {
 
               {/* Vital Signs */}
               <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Vital Signs
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Vital Signs
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={applyNormalVitalSigns}
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                  >
+                    Apply Normal Range
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -817,28 +1153,93 @@ export function ExaminationPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
+                      {/* Medicine Name with Autocomplete */}
+                      <div className="relative">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Medicine Name *
+                          Medicine Name * (Tên thuốc)
                         </label>
                         <input
                           type="text"
                           value={item.medicine_name}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const value = e.target.value;
                             updatePrescriptionItem(
                               index,
                               "medicine_name",
+                              value
+                            );
+                            searchMedicines(value, index);
+                          }}
+                          onFocus={() => {
+                            if (item.medicine_name.length >= 2) {
+                              searchMedicines(item.medicine_name, index);
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Search medicine..."
+                        />
+
+                        {/* Autocomplete Dropdown */}
+                        {showMedicineDropdown === index &&
+                          medicineSearchResults.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                              {medicineSearchResults.map((medicine) => (
+                                <div
+                                  key={medicine.id}
+                                  onClick={() =>
+                                    selectMedicine(medicine, index)
+                                  }
+                                  className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100"
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="font-medium text-gray-900">
+                                        {medicine.name}
+                                      </p>
+                                      <p className="text-xs text-gray-600">
+                                        {medicine.strength} -{" "}
+                                        {medicine.medicine_type}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-sm font-medium text-blue-600">
+                                        {medicine.selling_price.toLocaleString()}
+                                        đ
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        Stock: {medicine.stock_quantity}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+
+                      {/* Type */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Type (Loại thuốc)
+                        </label>
+                        <input
+                          type="text"
+                          value={item.medicine_type || ""}
+                          onChange={(e) =>
+                            updatePrescriptionItem(
+                              index,
+                              "medicine_type",
                               e.target.value
                             )
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Medicine name"
+                          placeholder="e.g., Tablet, Capsule, Syrup"
                         />
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Strength
+                          Strength (Hàm lượng)
                         </label>
                         <input
                           type="text"
@@ -857,7 +1258,7 @@ export function ExaminationPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Dosage *
+                          Dosage * (Liều dùng)
                         </label>
                         <input
                           type="text"
@@ -876,7 +1277,7 @@ export function ExaminationPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Frequency *
+                          Frequency * (Tần suất)
                         </label>
                         <input
                           type="text"
@@ -895,7 +1296,7 @@ export function ExaminationPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Duration *
+                          Duration * (Thời gian)
                         </label>
                         <input
                           type="text"
@@ -914,7 +1315,7 @@ export function ExaminationPage() {
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Quantity *
+                          Quantity * (Số lượng)
                         </label>
                         <input
                           type="number"
@@ -930,11 +1331,33 @@ export function ExaminationPage() {
                           min="1"
                         />
                       </div>
+
+                      {/* Show price if medicine selected from database */}
+                      {item.unit_price && item.unit_price > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Price Info (Thông tin giá)
+                          </label>
+                          <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-sm text-blue-900">
+                              <span className="font-medium">Unit:</span>{" "}
+                              {item.unit_price.toLocaleString()}đ
+                            </p>
+                            <p className="text-sm text-blue-900 font-semibold">
+                              <span className="font-medium">Total:</span>{" "}
+                              {(
+                                item.unit_price * item.quantity
+                              ).toLocaleString()}
+                              đ
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Instructions
+                        Instructions (Hướng dẫn sử dụng)
                       </label>
                       <textarea
                         value={item.instructions || ""}
@@ -954,7 +1377,7 @@ export function ExaminationPage() {
                     {/* Timing options */}
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Timing
+                        Timing (Thời điểm uống)
                       </label>
                       <div className="flex flex-wrap gap-4">
                         <label className="flex items-center">
@@ -970,7 +1393,7 @@ export function ExaminationPage() {
                             }
                             className="mr-2"
                           />
-                          Morning
+                          Morning (Sáng)
                         </label>
                         <label className="flex items-center">
                           <input
@@ -985,7 +1408,7 @@ export function ExaminationPage() {
                             }
                             className="mr-2"
                           />
-                          Afternoon
+                          Afternoon (Chiều)
                         </label>
                         <label className="flex items-center">
                           <input
@@ -1000,7 +1423,7 @@ export function ExaminationPage() {
                             }
                             className="mr-2"
                           />
-                          Evening
+                          Evening (Tối)
                         </label>
                         <label className="flex items-center">
                           <input
@@ -1015,7 +1438,7 @@ export function ExaminationPage() {
                             }
                             className="mr-2"
                           />
-                          Before Meal
+                          Before Meal (Trước ăn)
                         </label>
                         <label className="flex items-center">
                           <input
@@ -1030,7 +1453,7 @@ export function ExaminationPage() {
                             }
                             className="mr-2"
                           />
-                          After Meal
+                          After Meal (Sau ăn)
                         </label>
                       </div>
                     </div>
@@ -1088,6 +1511,18 @@ export function ExaminationPage() {
           </div>
         )}
       </div>
+
+      {/* Patient History Modal */}
+      {showHistoryModal && patientHistory && (
+        <PatientHistoryModal
+          history={patientHistory.history}
+          patientName={patientHistory.patient_name}
+          onClose={() => {
+            setShowHistoryModal(false);
+            setHistoryPatientId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

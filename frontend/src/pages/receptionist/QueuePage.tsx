@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-hot-toast";
 import {
   QueueListIcon,
   ClockIcon,
@@ -87,9 +88,11 @@ const QueuePage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
       refetch();
+      toast.success("Check-in thành công!");
     },
-    onError: (error: any) => {
-      alert(error.response?.data?.message || "Có lỗi xảy ra khi check-in");
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || "Có lỗi xảy ra khi check-in");
     },
   });
 
@@ -110,10 +113,12 @@ const QueuePage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
       refetch();
+      toast.success("Cập nhật trạng thái thành công!");
     },
-    onError: (error: any) => {
-      alert(
-        error.response?.data?.message || "Có lỗi xảy ra khi cập nhật trạng thái"
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(
+        err.response?.data?.message || "Có lỗi xảy ra khi cập nhật trạng thái"
       );
     },
   });

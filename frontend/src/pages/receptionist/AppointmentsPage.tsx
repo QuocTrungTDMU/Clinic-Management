@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-hot-toast";
 import {
   CalendarDaysIcon,
   UserIcon,
@@ -109,11 +110,14 @@ const AppointmentsPage: React.FC = () => {
         fee: "",
       });
       setAvailableSlots([]);
-      alert("Đặt lịch khám thành công!");
+      toast.success("Đặt lịch khám thành công!");
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error("Error creating appointment:", error);
-      alert(error.response?.data?.message || "Có lỗi xảy ra khi đặt lịch khám");
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(
+        err.response?.data?.message || "Có lỗi xảy ra khi đặt lịch khám"
+      );
     },
   });
 

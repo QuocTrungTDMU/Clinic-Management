@@ -6,6 +6,7 @@ use App\Http\Controllers\PatientController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\QueueController;
+use App\Http\Controllers\Api\MedicineController;
 use App\Http\Controllers\MedicalRecordController;
 use App\Http\Controllers\PrescriptionController;
 
@@ -41,11 +42,19 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Medical Records routes
     Route::apiResource('medical-records', MedicalRecordController::class);
+    Route::get('/patients/{patientId}/medical-records', [MedicalRecordController::class, 'getPatientMedicalHistory']);
 
     // Prescription routes
     Route::apiResource('prescriptions', PrescriptionController::class);
     Route::put('/prescriptions/{prescription}/print', [PrescriptionController::class, 'markAsPrinted']);
     Route::get('/prescriptions/{prescription}/print-data', [PrescriptionController::class, 'getPrintData']);
+
+    // Medicine routes
+    Route::get('/medicines/search', [MedicineController::class, 'search']); // For autocomplete in prescription
+    Route::get('/medicines/low-stock', [MedicineController::class, 'lowStock']);
+    Route::get('/medicines/categories', [MedicineController::class, 'categories']);
+    Route::post('/medicines/{id}/stock', [MedicineController::class, 'updateStock']);
+    Route::apiResource('medicines', MedicineController::class);
 
     // Helper routes for forms
     Route::get('/doctors', function () {

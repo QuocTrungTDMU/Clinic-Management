@@ -45,48 +45,43 @@ class TestDataSeeder extends Seeder
             'note' => 'Nhóm máu O+, Tiền sử: cao huyết áp'
         ]);
 
-        // Get first doctor
-        $doctor = User::whereHas('roles', function ($query) {
+        // Get ALL doctors (not just first one)
+        $doctors = User::whereHas('roles', function ($query) {
             $query->where('name', 'doctor');
-        })->first();
+        })->get();
 
-        if ($doctor) {
-            // Create appointments for today with 'in_progress' status for testing
-            Appointment::create([
-                'patient_id' => $patient1->id,
-                'doctor_id' => $doctor->id,
-                'appointment_datetime' => Carbon::today()->addHours(9),
-                'appointment_type' => 'checkup',
-                'reason' => 'Khám sức khỏe định kỳ',
-                'status' => 'in_progress',
-                'created_by' => $doctor->id,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            Appointment::create([
-                'patient_id' => $patient2->id,
-                'doctor_id' => $doctor->id,
-                'appointment_datetime' => Carbon::today()->addHours(10),
-                'appointment_type' => 'consultation',
-                'reason' => 'Đau bụng, buồn nôn',
-                'status' => 'in_progress',
-                'created_by' => $doctor->id,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            Appointment::create([
-                'patient_id' => $patient3->id,
-                'doctor_id' => $doctor->id,
-                'appointment_datetime' => Carbon::today()->addHours(11),
-                'appointment_type' => 'followup',
-                'reason' => 'Tái khám cao huyết áp',
-                'status' => 'in_progress',
-                'created_by' => $doctor->id,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        if ($doctors->isEmpty()) {
+            echo "⚠️  No doctors found in database. Please create doctor accounts first.\n";
+            return;
         }
+
+        // Delete old test appointments first
+        Appointment::whereIn('patient_id', [$patient1->id, $patient2->id, $patient3->id])->delete();
+
+        // Assign each patient to a different doctor
+        foreach ($doctors as $index => $doctor) {
+            $patient = [$patient1, $patient2, $patient3][$index % 3];
+
+            Appointment::create([
+                'patient_id' => $patient->id,
+                'doctor_id' => $doctor->id,
+                'appointment_datetime' => Carbon::now()->setTime(9 + $index, 0),
+                'appointment_type' => ['checkup', 'consultation', 'followup'][$index % 3],
+                'reason' => [
+                    'Khám sức khỏe định kỳ',
+                    'Đau bụng, buồn nôn',
+                    'Tái khám cao huyết áp'
+                ][$index % 3],
+                'status' => 'in_progress',
+                'created_by' => $doctor->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            echo "✅ Created appointment for {$patient->name} with Dr. {$doctor->name} (ID: {$doctor->id})\n";
+        }
+
+        echo "\n📋 Total doctors: {$doctors->count()}\n";
+        echo "📋 Each doctor should now have at least 1 patient in queue\n";
     }
 }

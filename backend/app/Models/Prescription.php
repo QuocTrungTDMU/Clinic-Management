@@ -10,6 +10,10 @@ class Prescription extends Model
         'medical_record_id',
         'patient_id',
         'doctor_id',
+        'status',
+        'total_amount',
+        'dispensed_by',
+        'dispensed_at',
         'general_instructions',
         'precautions',
         'diet_advice',
@@ -22,7 +26,9 @@ class Prescription extends Model
     protected $casts = [
         'is_printed' => 'boolean',
         'printed_at' => 'datetime',
+        'dispensed_at' => 'datetime',
         'total_cost' => 'decimal:2',
+        'total_amount' => 'decimal:2',
     ];
 
     public function medicalRecord()
@@ -43,5 +49,15 @@ class Prescription extends Model
     public function items()
     {
         return $this->hasMany(PrescriptionItem::class);
+    }
+
+    public function dispensedBy()
+    {
+        return $this->belongsTo(User::class, 'dispensed_by');
+    }
+
+    public function pharmacyTransaction()
+    {
+        return $this->hasOne(PharmacyTransaction::class);
     }
 }

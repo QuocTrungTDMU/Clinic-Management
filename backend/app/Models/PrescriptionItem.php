@@ -8,6 +8,7 @@ class PrescriptionItem extends Model
 {
     protected $fillable = [
         'prescription_id',
+        'medicine_id',
         'medicine_name',
         'medicine_type',
         'strength',
@@ -15,7 +16,10 @@ class PrescriptionItem extends Model
         'frequency',
         'duration',
         'quantity',
+        'quantity_prescribed',
+        'quantity_dispensed',
         'unit_price',
+        'subtotal',
         'total_price',
         'instructions',
         'morning',
@@ -27,7 +31,10 @@ class PrescriptionItem extends Model
 
     protected $casts = [
         'quantity' => 'integer',
+        'quantity_prescribed' => 'integer',
+        'quantity_dispensed' => 'integer',
         'unit_price' => 'decimal:2',
+        'subtotal' => 'decimal:2',
         'total_price' => 'decimal:2',
         'morning' => 'boolean',
         'afternoon' => 'boolean',
@@ -39,5 +46,10 @@ class PrescriptionItem extends Model
     public function prescription()
     {
         return $this->belongsTo(Prescription::class);
+    }
+
+    public function medicine()
+    {
+        return $this->belongsTo(Medicine::class);
     }
 }
