@@ -32,7 +32,7 @@ export function LoginPage() {
     //   email: "receptionist@clinic.com",
     //   password: "password123",
     // },
-     defaultValues: {
+    defaultValues: {
       email: "doctor@clinic.local",
       password: "doctor123",
     },
@@ -41,6 +41,7 @@ export function LoginPage() {
   const loginMutation = useMutation({
     mutationFn: (data: LoginCredentials) => authService.login(data),
     onSuccess: (user) => {
+      // Set user data in React Query cache
       queryClient.setQueryData(["user"], user);
       navigate("/app");
     },

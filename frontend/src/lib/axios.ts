@@ -30,10 +30,10 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Clear token and redirect to login on 401
+      // Clear token on 401 but DON'T redirect here
+      // Let the Protected component handle navigation
       localStorage.removeItem("clinic_auth_token");
       delete api.defaults.headers.common["Authorization"];
-      window.location.href = "/login";
     }
     return Promise.reject(error);
   }
