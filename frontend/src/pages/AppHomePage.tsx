@@ -22,6 +22,8 @@ export function AppHomePage() {
         navigate("/admin/dashboard", { replace: true });
       } else if (user.role_name === "receptionist") {
         navigate("/receptionist/dashboard", { replace: true });
+      } else if (user.role_name === "pharmacist") {
+        navigate("/pharmacist/dashboard", { replace: true });
       }
     }
   }, [user, isLoading, navigate]);

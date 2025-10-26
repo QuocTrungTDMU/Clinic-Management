@@ -9,6 +9,7 @@ use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class MedicalRecordController extends Controller
 {
@@ -36,6 +37,9 @@ class MedicalRecordController extends Controller
      */
     public function store(Request $request)
     {
+        // Debug: Log request data
+        Log::info('Medical Record Request:', $request->all());
+
         $request->validate([
             'appointment_id' => 'required|exists:appointments,id',
             'patient_id' => 'required|exists:patients,id',

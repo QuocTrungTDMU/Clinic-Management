@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\QueueController;
 use App\Http\Controllers\Api\MedicineController;
+use App\Http\Controllers\Api\PharmacyController;
 use App\Http\Controllers\MedicalRecordController;
 use App\Http\Controllers\PrescriptionController;
 
@@ -55,6 +56,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/medicines/categories', [MedicineController::class, 'categories']);
     Route::post('/medicines/{id}/stock', [MedicineController::class, 'updateStock']);
     Route::apiResource('medicines', MedicineController::class);
+
+    // Pharmacy routes
+    Route::get('/pharmacy/pending-prescriptions', [PharmacyController::class, 'getPendingPrescriptions']);
+    Route::get('/pharmacy/prescriptions/{id}', [PharmacyController::class, 'getPrescriptionForDispensing']);
+    Route::post('/pharmacy/dispense/{id}', [PharmacyController::class, 'dispensePrescription']);
+    Route::get('/pharmacy/transactions', [PharmacyController::class, 'getTransactions']);
+    Route::get('/pharmacy/stats/today', [PharmacyController::class, 'getTodayStats']);
+    Route::get('/pharmacy/receipt/{id}', [PharmacyController::class, 'getReceipt']);
 
     // Helper routes for forms
     Route::get('/doctors', function () {

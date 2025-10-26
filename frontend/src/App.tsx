@@ -20,8 +20,14 @@ import RegisterPatientPage from "./pages/receptionist/RegisterPatientPage";
 import AppointmentsPage from "./pages/receptionist/AppointmentsPage";
 import QueuePage from "./pages/receptionist/QueuePage";
 import { PatientHistoryPage } from "./pages/receptionist/PatientHistoryPage";
+import PharmacistDashboardPage from "./pages/pharmacist/PharmacistDashboardPage";
+import PendingPrescriptionsPage from "./pages/pharmacist/PendingPrescriptionsPage";
+import DispensingPage from "./pages/pharmacist/DispensingPage";
+import { TransactionsPage } from "./pages/pharmacist/TransactionsPage";
+import { InventoryPage } from "./pages/pharmacist/InventoryPage";
 import { AdminLayout } from "./components/AdminLayout";
 import ReceptionistLayout from "./components/ReceptionistLayout";
+import { PharmacistLayout } from "./components/PharmacistLayout";
 import { Protected } from "./components/Protected";
 import { authService } from "./lib/auth";
 import { useEffect } from "react";
@@ -122,6 +128,21 @@ function App() {
             <Route path="appointments" element={<AppointmentsPage />} />
             <Route path="queue" element={<QueuePage />} />
             <Route path="history" element={<PatientHistoryPage />} />
+          </Route>
+          {/* Pharmacist Routes */}
+          <Route
+            path="/pharmacist"
+            element={
+              <Protected>
+                <PharmacistLayout />
+              </Protected>
+            }
+          >
+            <Route path="dashboard" element={<PharmacistDashboardPage />} />
+            <Route path="pending" element={<PendingPrescriptionsPage />} />
+            <Route path="dispense/:id" element={<DispensingPage />} />
+            <Route path="transactions" element={<TransactionsPage />} />
+            <Route path="inventory" element={<InventoryPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

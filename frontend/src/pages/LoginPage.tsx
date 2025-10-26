@@ -32,6 +32,10 @@ export function LoginPage() {
     //   email: "receptionist@clinic.com",
     //   password: "password123",
     // },
+    // defaultValues: {
+    // Email: pharmacist@clinic.local
+    // Password: pharmacist123
+    // },
     defaultValues: {
       email: "doctor@clinic.local",
       password: "doctor123",
@@ -285,6 +289,22 @@ export function LoginPage() {
               </div>
               <div className="flex items-center justify-between p-3 bg-white/60 rounded-xl border border-white/50">
                 <div className="flex items-center">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
+                  <span className="font-semibold text-gray-800">
+                    Receptionist
+                  </span>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-600 font-mono">
+                    receptionist@clinic.com
+                  </div>
+                  <div className="text-xs text-gray-500 font-mono">
+                    password123
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-white/60 rounded-xl border border-white/50">
+                <div className="flex items-center">
                   <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
                   <span className="font-semibold text-gray-800">Doctor</span>
                 </div>
@@ -294,6 +314,22 @@ export function LoginPage() {
                   </div>
                   <div className="text-xs text-gray-500 font-mono">
                     doctor123
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-white/60 rounded-xl border border-white/50">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                  <span className="font-semibold text-gray-800">
+                    Pharmacist
+                  </span>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-600 font-mono">
+                    pharmacist@clinic.local
+                  </div>
+                  <div className="text-xs text-gray-500 font-mono">
+                    pharmacist123
                   </div>
                 </div>
               </div>
