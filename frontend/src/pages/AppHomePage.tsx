@@ -16,14 +16,21 @@ export function AppHomePage() {
   // Redirect users to their role-specific dashboards
   useEffect(() => {
     if (user && !isLoading) {
-      if (user.role_name === "doctor") {
-        navigate("/doctor/dashboard", { replace: true });
-      } else if (user.role_name === "admin") {
-        navigate("/admin/dashboard", { replace: true });
-      } else if (user.role_name === "receptionist") {
-        navigate("/receptionist/dashboard", { replace: true });
-      } else if (user.role_name === "pharmacist") {
-        navigate("/pharmacist/dashboard", { replace: true });
+      const roleRedirects: Record<string, string> = {
+        admin: "/admin/dashboard",
+        doctor: "/doctor/dashboard",
+        receptionist: "/receptionist/dashboard",
+        pharmacist: "/pharmacist/dashboard",
+        lab_technician: "/lab-technician/dashboard",
+      };
+
+      const redirectPath = roleRedirects[user.role_name];
+      
+      if (redirectPath) {
+        console.log("Redirecting to:", redirectPath, "for role:", user.role_name);
+        navigate(redirectPath, { replace: true });
+      } else {
+        console.warn("No redirect path for role:", user.role_name);
       }
     }
   }, [user, isLoading, navigate]);

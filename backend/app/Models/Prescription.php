@@ -60,4 +60,19 @@ class Prescription extends Model
     {
         return $this->hasOne(PharmacyTransaction::class);
     }
+
+    public function billingInvoice()
+    {
+        return $this->hasOne(BillingInvoice::class);
+    }
+
+    public function medicineReservations()
+    {
+        return $this->hasMany(MedicineReservation::class);
+    }
+
+    public function prescriptionItems()
+    {
+        return $this->hasMany(PrescriptionItem::class);
+    }
 }

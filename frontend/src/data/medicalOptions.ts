@@ -18,111 +18,87 @@ export interface PhysicalExamOption {
 // Chief Complaints - organized by category
 export const chiefComplaints: ChiefComplaintOption[] = [
   {
-    category: "Respiratory",
+    category: "Hô Hấp",
+    symptoms: ["Ho", "Sổ mũi", "Đau họng", "Khó thở", "Đau ngực", "Ho có đờm"],
+  },
+  {
+    category: "Sốt & Đau",
     symptoms: [
-      "Cough (Ho)",
-      "Runny nose (Sổ mũi)",
-      "Sore throat (Đau họng)",
-      "Difficulty breathing (Khó thở)",
-      "Chest pain (Đau ngực)",
-      "Cough with phlegm (Ho có đờm)",
+      "Sốt",
+      "Đau đầu",
+      "Đau mỏi cơ thể",
+      "Ớn lạnh",
+      "Đau khớp",
+      "Đau cơ",
     ],
   },
   {
-    category: "Fever & Pain",
+    category: "Tiêu Hóa",
     symptoms: [
-      "Fever (Sốt)",
-      "Headache (Đau đầu)",
-      "Body aches (Đau mỏi cơ thể)",
-      "Chills (Ớn lạnh)",
-      "Joint pain (Đau khớp)",
-      "Muscle pain (Đau cơ)",
+      "Đau bụng",
+      "Buồn nôn",
+      "Nôn",
+      "Tiêu chảy",
+      "Táo bón",
+      "Chán ăn",
+      "Ợ nóng",
     ],
   },
   {
-    category: "Digestive",
-    symptoms: [
-      "Abdominal pain (Đau bụng)",
-      "Nausea (Buồn nôn)",
-      "Vomiting (Nôn)",
-      "Diarrhea (Tiêu chảy)",
-      "Constipation (Táo bón)",
-      "Loss of appetite (Chán ăn)",
-      "Heartburn (Ợ nóng)",
-    ],
+    category: "Da Liễu",
+    symptoms: ["Phát ban", "Ngứa", "Sưng", "Bầm tím", "Vết thương"],
   },
   {
-    category: "Skin",
-    symptoms: [
-      "Rash (Phát ban)",
-      "Itching (Ngứa)",
-      "Swelling (Sưng)",
-      "Bruising (Bầm tím)",
-      "Wound (Vết thương)",
-    ],
-  },
-  {
-    category: "General",
-    symptoms: [
-      "Fatigue (Mệt mỏi)",
-      "Dizziness (Chóng mặt)",
-      "Weakness (Yếu người)",
-      "Weight loss (Giảm cân)",
-      "Sleep problems (Mất ngủ)",
-    ],
+    category: "Tổng Quát",
+    symptoms: ["Mệt mỏi", "Chóng mặt", "Yếu người", "Giảm cân", "Mất ngủ"],
   },
 ];
 
 // Common Diagnoses
 export const diagnoses: DiagnosisOption[] = [
   {
-    category: "Respiratory Infections",
+    category: "Nhiễm Trùng Hô Hấp",
     diagnoses: [
-      "Common cold (Cảm lạnh thông thường)",
-      "Influenza (Cúm)",
-      "Upper respiratory tract infection (Viêm đường hô hấp trên)",
-      "Acute bronchitis (Viêm phế quản cấp)",
-      "Pharyngitis (Viêm họng)",
-      "Tonsillitis (Viêm amidan)",
+      "Cảm lạnh thông thường",
+      "Cúm",
+      "Viêm đường hô hấp trên",
+      "Viêm phế quản cấp",
+      "Viêm họng",
+      "Viêm amidan",
     ],
   },
   {
-    category: "Digestive Disorders",
+    category: "Rối Loạn Tiêu Hóa",
     diagnoses: [
-      "Gastritis (Viêm dạ dày)",
-      "Gastroenteritis (Viêm dạ dày ruột)",
-      "Food poisoning (Ngộ độc thực phẩm)",
-      "Peptic ulcer (Loét dạ dày)",
-      "Irritable bowel syndrome (Hội chứng ruột kích thích)",
+      "Viêm dạ dày",
+      "Viêm dạ dày ruột",
+      "Ngộ độc thực phẩm",
+      "Loét dạ dày",
+      "Hội chứng ruột kích thích",
     ],
   },
   {
-    category: "Skin Conditions",
+    category: "Bệnh Da Liễu",
     diagnoses: [
-      "Contact dermatitis (Viêm da tiếp xúc)",
-      "Allergic reaction (Phản ứng dị ứng)",
-      "Fungal infection (Nhiễm nấm)",
-      "Eczema (Chàm)",
-      "Urticaria (Mề đay)",
+      "Viêm da tiếp xúc",
+      "Phản ứng dị ứng",
+      "Nhiễm nấm",
+      "Chàm",
+      "Mề đay",
     ],
   },
   {
-    category: "Musculoskeletal",
-    diagnoses: [
-      "Muscle strain (Căng cơ)",
-      "Sprain (Bong gân)",
-      "Back pain (Đau lưng)",
-      "Arthritis (Viêm khớp)",
-    ],
+    category: "Cơ Xương Khớp",
+    diagnoses: ["Căng cơ", "Bong gân", "Đau lưng", "Viêm khớp"],
   },
   {
-    category: "Other Common",
+    category: "Bệnh Phổ Biến Khác",
     diagnoses: [
-      "Hypertension (Tăng huyết áp)",
-      "Diabetes mellitus (Đái tháo đường)",
-      "Migraine (Đau nửa đầu)",
-      "Anxiety (Lo âu)",
-      "Insomnia (Mất ngủ)",
+      "Tăng huyết áp",
+      "Đái tháo đường",
+      "Đau nửa đầu",
+      "Lo âu",
+      "Mất ngủ",
     ],
   },
 ];
@@ -130,57 +106,38 @@ export const diagnoses: DiagnosisOption[] = [
 // Physical Examination Findings
 export const physicalExamFindings: PhysicalExamOption[] = [
   {
-    system: "General (Toàn thân)",
+    system: "Toàn Thân",
     findings: [
-      "Normal appearance (Ngoại hình bình thường)",
-      "Appears ill (Có vẻ ốm)",
-      "Alert and oriented (Tỉnh táo, định hướng tốt)",
-      "Mild distress (Khó chịu nhẹ)",
+      "Ngoại hình bình thường",
+      "Có vẻ ốm",
+      "Tỉnh táo, định hướng tốt",
+      "Khó chịu nhẹ",
     ],
   },
   {
-    system: "Throat/ENT (Họng/Tai Mũi Họng)",
+    system: "Họng/Tai Mũi Họng",
+    findings: ["Họng bình thường", "Họng đỏ", "Amidan sưng", "Nghẹt mũi"],
+  },
+  {
+    system: "Hô Hấp",
+    findings: ["Phổi trong sạch", "Có ran rít", "Giảm âm thở", "Nghe ran ẩm"],
+  },
+  {
+    system: "Tim Mạch",
+    findings: ["Tim đập bình thường", "Nhịp đều", "Không tiếng thổi"],
+  },
+  {
+    system: "Bụng",
     findings: [
-      "Throat normal (Họng bình thường)",
-      "Throat redness (Họng đỏ)",
-      "Tonsils enlarged (Amidan sưng)",
-      "Nasal congestion (Nghẹt mũi)",
+      "Mềm, không đau",
+      "Có đau khi ấn",
+      "Nhu động ruột bình thường",
+      "Chướng bụng",
     ],
   },
   {
-    system: "Respiratory (Hô hấp)",
-    findings: [
-      "Lungs clear (Phổi trong sạch)",
-      "Wheezing present (Có ran rít)",
-      "Decreased breath sounds (Giảm âm thở)",
-      "Crackles heard (Nghe ran ẩm)",
-    ],
-  },
-  {
-    system: "Cardiovascular (Tim mạch)",
-    findings: [
-      "Heart sounds normal (Tim đập bình thường)",
-      "Regular rhythm (Nhịp đều)",
-      "No murmurs (Không tiếng thổi)",
-    ],
-  },
-  {
-    system: "Abdomen (Bụng)",
-    findings: [
-      "Soft, non-tender (Mềm, không đau)",
-      "Tenderness present (Có đau khi ấn)",
-      "Bowel sounds normal (Nhu động ruột bình thường)",
-      "Distended (Chướng bụng)",
-    ],
-  },
-  {
-    system: "Skin (Da)",
-    findings: [
-      "No rash (Không phát ban)",
-      "Rash present (Có phát ban)",
-      "No lesions (Không tổn thương)",
-      "Swelling noted (Có sưng)",
-    ],
+    system: "Da",
+    findings: ["Không phát ban", "Có phát ban", "Không tổn thương", "Có sưng"],
   },
 ];
 

@@ -22,6 +22,11 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'phone',
+        'specialization',
+        'license_number',
+        'status',
+        'approved_at',
     ];
 
     /**
@@ -44,6 +49,15 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'approved_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Relationship: Medical Records created by this doctor
+     */
+    public function medicalRecords()
+    {
+        return $this->hasMany(MedicalRecord::class, 'doctor_id');
     }
 }

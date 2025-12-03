@@ -13,13 +13,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@clinic.local',
-            'password' => 'admin123',
-            'roles' => ['admin', 'doctor'],
+        $this->call([
+            RolesAndAdminSeeder::class,
+            DoctorUserSeeder::class,
+            ReceptionistUserSeeder::class,
+            PharmacistUserSeeder::class,
+            LabTechnicianSeeder::class,
+            AccountantUserSeeder::class,
+            ICD10Seeder::class,
+            LabTestTypeSeeder::class,
+            MedicineSeeder::class,
         ]);
     }
 }

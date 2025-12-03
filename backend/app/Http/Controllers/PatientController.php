@@ -11,10 +11,45 @@ class PatientController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $patients = Patient::orderBy('created_at', 'desc')->get();
-        return response()->json($patients);
+        $query = Patient::query()->with(['appointments' => function ($query) {
+            $query->latest('appointment_datetime')->limit(1);
+        }]);
+
+        // Search by name if provided
+        if ($request->has('search') && $request->search) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+
+        $patients = $query->orderBy('created_at', 'desc')->get();
+
+        // Add appointments count and last visit
+        $patients = $patients->map(function ($patient) {
+            $lastAppointment = $patient->appointments()
+                ->latest('appointment_datetime')
+                ->first();
+
+            return [
+                'id' => $patient->id,
+                'name' => $patient->name,
+                'date_of_birth' => $patient->date_of_birth,
+                'gender' => $patient->gender,
+                'phone' => $patient->phone,
+                'address' => $patient->address,
+                'medical_history' => $patient->medical_history,
+                'allergies' => $patient->allergies,
+                'emergency_contact' => $patient->emergency_contact,
+                'created_at' => $patient->created_at,
+                'appointments_count' => $patient->appointments()->count(),
+                'last_visit' => $lastAppointment ?
+                    $lastAppointment->appointment_datetime->format('Y-m-d') : null,
+            ];
+        });
+
+        return response()->json([
+            'data' => $patients
+        ]);
     }
 
     /**
@@ -40,7 +75,59 @@ class PatientController extends Controller
      */
     public function show(Patient $patient): JsonResponse
     {
-        return response()->json($patient);
+        // Load relationships
+        $patient->load([
+            'appointments.doctor',
+            'medicalRecords.doctor',
+            'medicalRecords.prescription.items.medicine'
+        ]);
+
+        return response()->json([
+            'data' => [
+                'id' => $patient->id,
+                'name' => $patient->name,
+                'date_of_birth' => $patient->date_of_birth,
+                'gender' => $patient->gender,
+                'phone' => $patient->phone,
+                'address' => $patient->address,
+                'medical_history' => $patient->medical_history,
+                'allergies' => $patient->allergies,
+                'emergency_contact' => $patient->emergency_contact,
+                'created_at' => $patient->created_at,
+                'appointments' => $patient->appointments->sortByDesc('appointment_datetime')->map(function ($appointment) {
+                    return [
+                        'id' => $appointment->id,
+                        'appointment_date' => $appointment->appointment_datetime->format('Y-m-d'),
+                        'appointment_time' => $appointment->appointment_datetime->format('H:i'),
+                        'status' => $appointment->status,
+                        'reason' => $appointment->reason,
+                        'doctor_name' => $appointment->doctor?->name,
+                    ];
+                }),
+                'medical_records' => $patient->medicalRecords->sortByDesc('created_at')->map(function ($record) {
+                    return [
+                        'id' => $record->id,
+                        'visit_date' => $record->created_at,
+                        'diagnosis' => $record->diagnosis ?? 'N/A',
+                        'symptoms' => $record->symptoms ?? 'N/A',
+                        'treatment_plan' => $record->treatment_plan,
+                        'notes' => $record->doctor_notes,
+                        'doctor_name' => $record->doctor?->name,
+                        'prescription' => $record->prescription ? [
+                            'id' => $record->prescription->id,
+                            'items' => $record->prescription->items->map(function ($item) {
+                                return [
+                                    'medicine_name' => $item->medicine?->name ?? $item->medicine_name,
+                                    'dosage' => $item->dosage,
+                                    'quantity' => $item->quantity,
+                                    'instructions' => $item->instructions,
+                                ];
+                            })
+                        ] : null,
+                    ];
+                }),
+            ]
+        ]);
     }
 
     /**

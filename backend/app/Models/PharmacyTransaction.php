@@ -12,14 +12,19 @@ class PharmacyTransaction extends Model
         'patient_id',
         'pharmacist_id',
         'total_amount',
+        'paid_amount',
+        'change_amount',
         'payment_method',
         'payment_status',
+        'status',
         'transaction_date',
         'notes',
     ];
 
     protected $casts = [
         'total_amount' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
+        'change_amount' => 'decimal:2',
         'transaction_date' => 'datetime',
     ];
 

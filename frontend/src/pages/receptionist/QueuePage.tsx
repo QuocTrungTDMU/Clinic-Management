@@ -54,7 +54,8 @@ const QueuePage: React.FC = () => {
       const response = await api.get("/queue/today");
       return response.data;
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 10000, // Refresh every 10 seconds (faster updates)
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
   });
 
   // Calculate queue statistics

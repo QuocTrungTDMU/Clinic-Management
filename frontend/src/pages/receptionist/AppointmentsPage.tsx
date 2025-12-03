@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import {
   CalendarDaysIcon,
   UserIcon,
   DocumentTextIcon,
+  MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 import api from "../../lib/axios";
 
@@ -15,39 +17,46 @@ interface Patient {
   dob: string;
 }
 
-interface Doctor {
-  id: number;
-  name: string;
-  email: string;
-}
-
 interface AppointmentForm {
   patient_id: string;
-  doctor_id: string;
+  specialty: string;
   appointment_date: string;
   appointment_time: string;
-  duration_minutes: number;
   appointment_type: string;
   reason: string;
   notes: string;
-  fee: string;
 }
 
 const AppointmentsPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const [searchPatient, setSearchPatient] = useState("");
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const [selectedPatientName, setSelectedPatientName] = useState("");
   const [form, setForm] = useState<AppointmentForm>({
     patient_id: "",
-    doctor_id: "",
+    specialty: "",
     appointment_date: "",
     appointment_time: "",
-    duration_minutes: 30,
     appointment_type: "checkup",
     reason: "",
     notes: "",
-    fee: "",
   });
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Specialty fees mapping (will be from admin settings later)
+  const specialtyFees: Record<string, number> = {
+    internal: 200000, // Nội khoa
+    surgery: 250000, // Ngoại khoa
+    pediatrics: 200000, // Nhi khoa
+    obstetrics: 250000, // Sản khoa
+    cardiology: 300000, // Tim mạch
+    dermatology: 200000, // Da liễu
+    orthopedics: 250000, // Chấn thương chỉnh hình
+    ophthalmology: 200000, // Mắt
+    ent: 200000, // Tai mũi họng
+  };
 
   // Fetch patients list
   const { data: patients = [] } = useQuery<Patient[]>({
@@ -58,57 +67,137 @@ const AppointmentsPage: React.FC = () => {
     },
   });
 
-  // Fetch doctors list
-  const { data: doctors = [] } = useQuery<Doctor[]>({
-    queryKey: ["doctors"],
-    queryFn: async () => {
-      const response = await api.get("/doctors");
-      return response.data;
-    },
+  // Auto-fill patient info if coming from registration
+  useEffect(() => {
+    const state = location.state as {
+      newPatient?: { name: string; phone: string };
+    };
+    if (state?.newPatient) {
+      // Find patient by name and phone
+      const matchedPatient = patients.find(
+        (p) =>
+          p.name === state.newPatient?.name &&
+          p.phone === state.newPatient?.phone
+      );
+      if (matchedPatient) {
+        setForm((prev) => ({
+          ...prev,
+          patient_id: matchedPatient.id.toString(),
+        }));
+        setSelectedPatientName(
+          `${matchedPatient.name} - ${matchedPatient.phone}`
+        );
+        toast.success(`Đã chọn bệnh nhân: ${matchedPatient.name}`, {
+          duration: 3000,
+        });
+      }
+    }
+  }, [location.state, patients]);
+
+  // Helper function to remove Vietnamese accents
+  const removeAccents = (str: string) => {
+    return str
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D");
+  };
+
+  // Filter patients based on search (name or phone, with or without accents)
+  const filteredPatients = patients.filter((patient) => {
+    const searchLower = searchPatient.toLowerCase();
+    const searchNoAccent = removeAccents(searchLower);
+    const nameLower = patient.name.toLowerCase();
+    const nameNoAccent = removeAccents(nameLower);
+    const phone = patient.phone || "";
+
+    return (
+      nameLower.includes(searchLower) ||
+      nameNoAccent.includes(searchNoAccent) ||
+      phone.includes(searchPatient)
+    );
   });
 
-  // Fetch doctor availability when date and doctor changes
-  useEffect(() => {
-    if (form.doctor_id && form.appointment_date) {
-      fetchDoctorAvailability();
-    }
-  }, [form.doctor_id, form.appointment_date]);
+  // Handle patient selection from dropdown
+  const handleSelectPatient = (patient: Patient) => {
+    setForm((prev) => ({
+      ...prev,
+      patient_id: patient.id.toString(),
+    }));
+    setSelectedPatientName(`${patient.name} - ${patient.phone}`);
+    setSearchPatient("");
+    setShowPatientDropdown(false);
+  };
 
-  const fetchDoctorAvailability = async () => {
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest(".patient-search-container")) {
+        setShowPatientDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Fetch available time slots when specialty and date changes
+  const fetchAvailableSlots = useCallback(async () => {
+    if (!form.specialty || !form.appointment_date) {
+      setAvailableSlots([]);
+      return;
+    }
+
     try {
-      const response = await api.get("/doctor-availability", {
+      const response = await api.get("/available-slots", {
         params: {
-          doctor_id: form.doctor_id,
+          specialty: form.specialty,
           date: form.appointment_date,
         },
       });
-      setAvailableSlots(response.data.available_slots);
+      setAvailableSlots(response.data.available_slots || []);
     } catch (error) {
       console.error("Error fetching availability:", error);
       setAvailableSlots([]);
     }
-  };
+  }, [form.specialty, form.appointment_date]);
+
+  useEffect(() => {
+    fetchAvailableSlots();
+  }, [fetchAvailableSlots]);
 
   // Create appointment mutation
   const createAppointmentMutation = useMutation({
-    mutationFn: async (appointmentData: any) => {
+    mutationFn: async (appointmentData: {
+      patient_id: string;
+      specialty: string;
+      appointment_datetime: string;
+      duration_minutes: number;
+      appointment_type: string;
+      reason: string;
+      notes: string;
+      fee: number;
+    }) => {
       const response = await api.post("/appointments", appointmentData);
       return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["queue", "today"] }); // Update queue list
       // Reset form
       setForm({
         patient_id: "",
-        doctor_id: "",
+        specialty: "",
         appointment_date: "",
         appointment_time: "",
-        duration_minutes: 30,
         appointment_type: "checkup",
         reason: "",
         notes: "",
-        fee: "",
       });
+      setSelectedPatientName("");
       setAvailableSlots([]);
       toast.success("Đặt lịch khám thành công!");
     },
@@ -135,14 +224,38 @@ const AppointmentsPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation
+    if (!form.patient_id) {
+      toast.error("Vui lòng chọn bệnh nhân");
+      return;
+    }
+    if (!form.specialty) {
+      toast.error("Vui lòng chọn chuyên khoa");
+      return;
+    }
+    if (!form.appointment_date) {
+      toast.error("Vui lòng chọn ngày khám");
+      return;
+    }
+    if (!form.appointment_time) {
+      toast.error("Vui lòng chọn giờ khám");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      const fee = specialtyFees[form.specialty] || 200000; // Default 200k
       const appointmentData = {
-        ...form,
+        patient_id: form.patient_id,
+        specialty: form.specialty,
         appointment_datetime: `${form.appointment_date} ${form.appointment_time}:00`,
-        duration_minutes: Number(form.duration_minutes),
-        fee: form.fee ? Number(form.fee) : null,
+        duration_minutes: 30, // Fixed 30 minutes
+        appointment_type: form.appointment_type,
+        reason: form.reason,
+        notes: form.notes,
+        fee: fee,
       };
 
       await createAppointmentMutation.mutateAsync(appointmentData);
@@ -178,52 +291,127 @@ const AppointmentsPage: React.FC = () => {
               </h3>
 
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div>
+                <div className="relative patient-search-container">
                   <label
-                    htmlFor="patient_id"
-                    className="block text-sm font-medium text-gray-700"
+                    htmlFor="patient_search"
+                    className="block text-sm font-medium text-gray-700 mb-1"
                   >
                     Bệnh nhân <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    name="patient_id"
-                    id="patient_id"
-                    required
-                    value={form.patient_id}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Chọn bệnh nhân</option>
-                    {patients.map((patient) => (
-                      <option key={patient.id} value={patient.id}>
-                        {patient.name} - {patient.phone}
-                      </option>
-                    ))}
-                  </select>
+                  {/* Searchable Select */}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      id="patient_search"
+                      placeholder={
+                        selectedPatientName || "Tìm kiếm bệnh nhân theo tên..."
+                      }
+                      value={searchPatient}
+                      onChange={(e) => {
+                        setSearchPatient(e.target.value);
+                        setShowPatientDropdown(true);
+                      }}
+                      onFocus={() => setShowPatientDropdown(true)}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    />
+                    {/* Hidden required input for validation */}
+                    <input
+                      type="hidden"
+                      name="patient_id"
+                      value={form.patient_id}
+                      required
+                    />
+                  </div>
+
+                  {/* Dropdown List */}
+                  {showPatientDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                      {filteredPatients.length > 0 ? (
+                        <>
+                          <div className="px-3 py-2 text-xs text-gray-500 bg-gray-50 sticky top-0">
+                            {filteredPatients.length} bệnh nhân
+                            {searchPatient && ` (tìm: "${searchPatient}")`}
+                          </div>
+                          {filteredPatients.map((patient) => (
+                            <div
+                              key={patient.id}
+                              onClick={() => handleSelectPatient(patient)}
+                              className={`cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-50 ${
+                                form.patient_id === patient.id.toString()
+                                  ? "bg-blue-100 text-blue-900"
+                                  : "text-gray-900"
+                              }`}
+                            >
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {patient.name}
+                                </span>
+                                <span className="text-sm text-gray-500">
+                                  {patient.phone}
+                                </span>
+                              </div>
+                              {form.patient_id === patient.id.toString() && (
+                                <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-600">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </>
+                      ) : (
+                        <div className="px-3 py-4 text-sm text-gray-500 text-center">
+                          {searchPatient
+                            ? `Không tìm thấy bệnh nhân với tên "${searchPatient}"`
+                            : "Chưa có bệnh nhân nào"}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Selected patient display */}
+                  {selectedPatientName && !showPatientDropdown && (
+                    <div className="mt-2 text-sm text-green-600 flex items-center">
+                      <span className="mr-1">✓</span>
+                      {selectedPatientName}
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <label
-                    htmlFor="doctor_id"
+                    htmlFor="specialty"
                     className="block text-sm font-medium text-gray-700"
                   >
-                    Bác sĩ <span className="text-red-500">*</span>
+                    Chuyên khoa <span className="text-red-500">*</span>
                   </label>
                   <select
-                    name="doctor_id"
-                    id="doctor_id"
+                    name="specialty"
+                    id="specialty"
                     required
-                    value={form.doctor_id}
+                    value={form.specialty}
                     onChange={handleInputChange}
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
-                    <option value="">Chọn bác sĩ</option>
-                    {doctors.map((doctor) => (
-                      <option key={doctor.id} value={doctor.id}>
-                        {doctor.name}
-                      </option>
-                    ))}
+                    <option value="">Chọn chuyên khoa</option>
+                    <option value="internal">Nội khoa</option>
+                    <option value="surgery">Ngoại khoa</option>
+                    <option value="pediatrics">Nhi khoa</option>
+                    <option value="obstetrics">Sản khoa</option>
+                    <option value="cardiology">Tim mạch</option>
+                    <option value="dermatology">Da liễu</option>
+                    <option value="orthopedics">Chấn thương chỉnh hình</option>
+                    <option value="ophthalmology">Mắt</option>
+                    <option value="ent">Tai mũi họng</option>
                   </select>
+                  {form.specialty && (
+                    <p className="mt-2 text-sm text-gray-600">
+                      Phí khám:{" "}
+                      {specialtyFees[form.specialty]?.toLocaleString("vi-VN")}₫
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -235,7 +423,7 @@ const AppointmentsPage: React.FC = () => {
                 Thời Gian
               </h3>
 
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
                   <label
                     htmlFor="appointment_date"
@@ -274,7 +462,7 @@ const AppointmentsPage: React.FC = () => {
                     <option value="">
                       {availableSlots.length
                         ? "Chọn giờ khám"
-                        : "Chọn bác sĩ và ngày trước"}
+                        : "Chọn chuyên khoa và ngày trước"}
                     </option>
                     {availableSlots.map((slot) => (
                       <option key={slot} value={slot}>
@@ -282,27 +470,9 @@ const AppointmentsPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="duration_minutes"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Thời lượng (phút)
-                  </label>
-                  <select
-                    name="duration_minutes"
-                    id="duration_minutes"
-                    value={form.duration_minutes}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value={15}>15 phút</option>
-                    <option value={30}>30 phút</option>
-                    <option value={45}>45 phút</option>
-                    <option value={60}>60 phút</option>
-                  </select>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Thời lượng: 30 phút
+                  </p>
                 </div>
               </div>
             </div>
@@ -332,28 +502,8 @@ const AppointmentsPage: React.FC = () => {
                     <option value="checkup">Khám tổng quát</option>
                     <option value="followup">Tái khám</option>
                     <option value="consultation">Tư vấn</option>
-                    <option value="emergency">Khẩn cấp</option>
+                    <option value="emergency">Cấp cứu</option>
                   </select>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="fee"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Phí khám (VND)
-                  </label>
-                  <input
-                    type="number"
-                    name="fee"
-                    id="fee"
-                    min="0"
-                    step="1000"
-                    value={form.fee}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="VD: 200000"
-                  />
                 </div>
               </div>
 
@@ -408,15 +558,14 @@ const AppointmentsPage: React.FC = () => {
                     ) {
                       setForm({
                         patient_id: "",
-                        doctor_id: "",
+                        specialty: "",
                         appointment_date: "",
                         appointment_time: "",
-                        duration_minutes: 30,
                         appointment_type: "checkup",
                         reason: "",
                         notes: "",
-                        fee: "",
                       });
+                      setSelectedPatientName("");
                       setAvailableSlots([]);
                     }
                   }}

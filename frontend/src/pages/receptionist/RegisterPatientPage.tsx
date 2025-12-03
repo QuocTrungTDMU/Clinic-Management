@@ -9,9 +9,7 @@ interface PatientForm {
   dateOfBirth: string;
   gender: string;
   phone: string;
-  email: string;
   address: string;
-  idNumber: string;
   bloodType: string;
   allergies: string;
   medicalHistory: string;
@@ -27,9 +25,7 @@ const RegisterPatientPage: React.FC = () => {
     dateOfBirth: "",
     gender: "",
     phone: "",
-    email: "",
     address: "",
-    idNumber: "",
     bloodType: "",
     allergies: "",
     medicalHistory: "",
@@ -64,9 +60,7 @@ const RegisterPatientPage: React.FC = () => {
         gender: form.gender,
         phone: form.phone,
         address: form.address,
-        note: `Email: ${form.email || "N/A"}\nID: ${
-          form.idNumber || "N/A"
-        }\nNhóm máu: ${form.bloodType || "N/A"}\nDị ứng: ${
+        note: `Nhóm máu: ${form.bloodType || "N/A"}\nDị ứng: ${
           form.allergies || "Không"
         }\nTiền sử: ${
           form.medicalHistory || "Không"
@@ -79,24 +73,17 @@ const RegisterPatientPage: React.FC = () => {
 
       toast.success("Đăng ký bệnh nhân thành công!");
 
-      // Reset form after successful registration
-      setForm({
-        fullName: "",
-        dateOfBirth: "",
-        gender: "",
-        phone: "",
-        email: "",
-        address: "",
-        idNumber: "",
-        bloodType: "",
-        allergies: "",
-        medicalHistory: "",
-        emergencyContactName: "",
-        emergencyContactPhone: "",
-        emergencyContactRelation: "",
-      });
-
-      setTimeout(() => navigate("/receptionist/dashboard"), 1500);
+      // Navigate to appointments page with patient data
+      setTimeout(() => {
+        navigate("/receptionist/appointments", {
+          state: {
+            newPatient: {
+              name: form.fullName,
+              phone: form.phone,
+            },
+          },
+        });
+      }, 1000);
     } catch (error: unknown) {
       console.error("Error registering patient:", error);
       const err = error as { response?: { data?: { message?: string } } };
@@ -196,25 +183,6 @@ const RegisterPatientPage: React.FC = () => {
 
                 <div>
                   <label
-                    htmlFor="idNumber"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    CMND/CCCD <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="idNumber"
-                    id="idNumber"
-                    required
-                    value={form.idNumber}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="123456789012"
-                  />
-                </div>
-
-                <div>
-                  <label
                     htmlFor="phone"
                     className="block text-sm font-medium text-gray-700"
                   >
@@ -229,24 +197,6 @@ const RegisterPatientPage: React.FC = () => {
                     onChange={handleInputChange}
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="0987654321"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    id="email"
-                    value={form.email}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="example@email.com"
                   />
                 </div>
               </div>
@@ -356,13 +306,12 @@ const RegisterPatientPage: React.FC = () => {
                     htmlFor="emergencyContactName"
                     className="block text-sm font-medium text-gray-700"
                   >
-                    Tên người liên hệ <span className="text-red-500">*</span>
+                    Tên người liên hệ
                   </label>
                   <input
                     type="text"
                     name="emergencyContactName"
                     id="emergencyContactName"
-                    required
                     value={form.emergencyContactName}
                     onChange={handleInputChange}
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -375,14 +324,12 @@ const RegisterPatientPage: React.FC = () => {
                     htmlFor="emergencyContactPhone"
                     className="block text-sm font-medium text-gray-700"
                   >
-                    Số điện thoại khẩn cấp{" "}
-                    <span className="text-red-500">*</span>
+                    Số điện thoại khẩn cấp
                   </label>
                   <input
                     type="tel"
                     name="emergencyContactPhone"
                     id="emergencyContactPhone"
-                    required
                     value={form.emergencyContactPhone}
                     onChange={handleInputChange}
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -395,12 +342,11 @@ const RegisterPatientPage: React.FC = () => {
                     htmlFor="emergencyContactRelation"
                     className="block text-sm font-medium text-gray-700"
                   >
-                    Mối quan hệ <span className="text-red-500">*</span>
+                    Mối quan hệ
                   </label>
                   <select
                     name="emergencyContactRelation"
                     id="emergencyContactRelation"
-                    required
                     value={form.emergencyContactRelation}
                     onChange={handleInputChange}
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -435,9 +381,7 @@ const RegisterPatientPage: React.FC = () => {
                         dateOfBirth: "",
                         gender: "",
                         phone: "",
-                        email: "",
                         address: "",
-                        idNumber: "",
                         bloodType: "",
                         allergies: "",
                         medicalHistory: "",

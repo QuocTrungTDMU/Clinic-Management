@@ -18,6 +18,7 @@ class Appointment extends Model
         'duration_minutes',
         'status',
         'appointment_type',
+        'specialty',
         'reason',
         'notes',
         'fee',
@@ -41,5 +42,10 @@ class Appointment extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function medicalRecord()
+    {
+        return $this->hasOne(MedicalRecord::class);
     }
 }

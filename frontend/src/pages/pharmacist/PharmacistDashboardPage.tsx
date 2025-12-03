@@ -36,7 +36,7 @@ export default function PharmacistDashboardPage() {
       bgColor: "bg-blue-50",
     },
     {
-      title: "Đã Bán Hôm Nay",
+      title: "Đã Phát Hôm Nay",
       value: stats?.dispensed_today || 0,
       icon: "✅",
       color: "bg-green-500",
@@ -151,9 +151,9 @@ export default function PharmacistDashboardPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-900">
-                  Lịch Sử Bán Hàng
+                  Lịch Sử Phát Thuốc
                 </p>
-                <p className="text-xs text-gray-500">Xem doanh thu</p>
+                <p className="text-xs text-gray-500">Xem lịch sử phát thuốc</p>
               </div>
             </a>
           </div>

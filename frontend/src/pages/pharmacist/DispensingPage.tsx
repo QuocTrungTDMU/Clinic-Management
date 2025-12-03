@@ -50,7 +50,6 @@ export default function DispensingPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [notes, setNotes] = useState("");
 
   // Fetch prescription details
@@ -66,20 +65,19 @@ export default function DispensingPage() {
   const dispenseMutation = useMutation({
     mutationFn: async () => {
       const response = await api.post(`/pharmacy/dispense/${id}`, {
-        payment_method: paymentMethod,
         notes: notes,
       });
       return response.data;
     },
     onSuccess: () => {
-      toast.success("Bán thuốc thành công!");
+      toast.success("Phát thuốc thành công!");
       queryClient.invalidateQueries({ queryKey: ["pending-prescriptions"] });
       queryClient.invalidateQueries({ queryKey: ["pharmacy-stats-today"] });
       navigate("/pharmacist/pending");
     },
     onError: (error: any) => {
       toast.error(
-        error.response?.data?.message || "Có lỗi xảy ra khi bán thuốc"
+        error.response?.data?.message || "Có lỗi xảy ra khi phát thuốc"
       );
     },
   });
@@ -87,16 +85,7 @@ export default function DispensingPage() {
   const handleSubmit = () => {
     if (!data) return;
 
-    // Check if all medicines are available
-    const unavailable = data.items.filter((item) => !item.available);
-    if (unavailable.length > 0) {
-      toast.error(
-        `Không đủ thuốc: ${unavailable.map((i) => i.medicine_name).join(", ")}`
-      );
-      return;
-    }
-
-    if (window.confirm("Xác nhận bán thuốc và thu tiền?")) {
+    if (window.confirm("Xác nhận đã phát thuốc cho bệnh nhân?")) {
       dispenseMutation.mutate();
     }
   };
@@ -125,10 +114,10 @@ export default function DispensingPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Bán Thuốc & Thu Tiền
+            Xác Nhận Phát Thuốc
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Đơn thuốc #{data.prescription.id}
+            Đơn thuốc #{data.prescription.id} - ✅ Đã thanh toán
           </p>
         </div>
         <button
@@ -306,56 +295,53 @@ export default function DispensingPage() {
         </div>
       )}
 
-      {/* Payment Section */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Thanh Toán</h2>
-
-        <div className="space-y-4">
-          {/* Payment Method */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phương thức thanh toán
-            </label>
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            >
-              <option value="cash">Tiền mặt</option>
-              <option value="card">Thẻ</option>
-              <option value="transfer">Chuyển khoản</option>
-              <option value="insurance">Bảo hiểm</option>
-            </select>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Ghi chú (tùy chọn)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              placeholder="Ghi chú thêm về giao dịch..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+      {/* Payment Info - Read Only */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+        <div className="flex items-center space-x-3 mb-4">
+          <svg
+            className="h-6 w-6 text-green-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
             />
-          </div>
+          </svg>
+          <h2 className="text-lg font-semibold text-green-900">
+            ✅ Đơn thuốc đã được thanh toán
+          </h2>
+        </div>
 
-          {/* Total Amount */}
-          <div className="border-t border-gray-300 pt-4">
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-gray-900">
-                Tổng tiền:
-              </span>
-              <span className="text-3xl font-bold text-green-600">
-                {new Intl.NumberFormat("vi-VN", {
-                  style: "currency",
-                  currency: "VND",
-                }).format(data.total_amount)}
-              </span>
-            </div>
+        <div className="bg-white rounded-lg p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xl font-bold text-gray-900">
+              Tổng tiền đã thu:
+            </span>
+            <span className="text-2xl font-bold text-green-600">
+              {new Intl.NumberFormat("vi-VN", {
+                style: "currency",
+                currency: "VND",
+              }).format(data.total_amount)}
+            </span>
           </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Ghi chú khi phát thuốc (tùy chọn)
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder="Ví dụ: Bệnh nhân đã nhận đầy đủ thuốc, đã hướng dẫn cách dùng..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+          />
         </div>
       </div>
 
@@ -369,9 +355,9 @@ export default function DispensingPage() {
         </button>
         <button
           onClick={handleSubmit}
-          disabled={!allAvailable || dispenseMutation.isPending}
+          disabled={dispenseMutation.isPending}
           className={`px-8 py-3 text-sm font-medium rounded-lg text-white transition-colors ${
-            allAvailable && !dispenseMutation.isPending
+            !dispenseMutation.isPending
               ? "bg-green-600 hover:bg-green-700"
               : "bg-gray-400 cursor-not-allowed"
           }`}
@@ -400,33 +386,32 @@ export default function DispensingPage() {
               Đang xử lý...
             </span>
           ) : (
-            "Xác Nhận Bán & Thu Tiền"
+            "✓ Xác Nhận Đã Phát Thuốc"
           )}
         </button>
       </div>
 
-      {/* Warning if not all available */}
-      {!allAvailable && (
-        <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex">
-            <svg
-              className="h-5 w-5 text-red-400 mr-3"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <p className="text-sm text-red-800">
-              <strong>Không thể bán:</strong> Một số thuốc không đủ số lượng
-              trong kho. Vui lòng nhập thêm hoặc liên hệ quản lý kho.
-            </p>
-          </div>
+      {/* Info Note */}
+      <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex">
+          <svg
+            className="h-5 w-5 text-blue-400 mr-3"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <p className="text-sm text-blue-800">
+            <strong>Lưu ý:</strong> Đơn thuốc này đã được thanh toán bởi phòng
+            kế toán. Vui lòng kiểm tra kỹ số lượng thuốc và hướng dẫn bệnh nhân
+            cách sử dụng trước khi xác nhận phát thuốc.
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }

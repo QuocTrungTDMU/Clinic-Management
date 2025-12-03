@@ -1,118 +1,451 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authService } from "../../lib/auth";
+import { apiClient } from "../../lib/axios";
+import { toast } from "react-hot-toast";
+
+interface Doctor {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  specialization: string | null;
+  license_number: string | null;
+  status: "pending" | "active" | "inactive" | "rejected";
+  approved_at: string | null;
+  patient_count: number;
+  created_at: string;
+}
 
 export function DoctorManagementPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    specialization: "",
+    license_number: "",
+    password: "",
+  });
 
   const { data: user } = useQuery({
     queryKey: ["user"],
     queryFn: authService.me,
   });
 
-  // Mock doctor data - will be replaced with real API call
-  const mockDoctors = [
-    {
-      id: 1,
-      name: "Dr. Trung Bảo",
-      email: "doctor@clinic.local",
-      phone: "0901234567",
-      specialization: "Internal Medicine",
-      license: "MD12345",
-      status: "active",
-      registeredAt: "2025-09-15",
-      approvedAt: "2025-09-16",
-      patientCount: 45,
+  // Fetch doctors from API
+  const { data: doctorsData, isLoading: isDoctorsLoading } = useQuery({
+    queryKey: ["admin-doctors", statusFilter, searchTerm],
+    queryFn: async () => {
+      const response = await apiClient.get("/admin/doctors", {
+        params: {
+          status: statusFilter,
+          search: searchTerm,
+        },
+      });
+      return response.data;
     },
-    {
-      id: 2,
-      name: "Dr. Nguyễn Thành",
-      email: "nguyen.thanh@clinic.local",
-      phone: "0907654321",
-      specialization: "Cardiology",
-      license: "MD67890",
-      status: "pending",
-      registeredAt: "2025-09-25",
-      approvedAt: null,
-      patientCount: 0,
-    },
-    {
-      id: 3,
-      name: "Dr. Lê Minh Hoàng",
-      email: "le.hoang@clinic.local",
-      phone: "0912345678",
-      specialization: "Pediatrics",
-      license: "MD11111",
-      status: "active",
-      registeredAt: "2025-09-10",
-      approvedAt: "2025-09-11",
-      patientCount: 62,
-    },
-    {
-      id: 4,
-      name: "Dr. Phạm Thị Mai",
-      email: "pham.mai@clinic.local",
-      phone: "0908765432",
-      specialization: "Dermatology",
-      license: "MD22222",
-      status: "pending",
-      registeredAt: "2025-09-26",
-      approvedAt: null,
-      patientCount: 0,
-    },
-    {
-      id: 5,
-      name: "Dr. Trần Văn Nam",
-      email: "tran.nam@clinic.local",
-      phone: "0913579246",
-      specialization: "Orthopedics",
-      license: "MD33333",
-      status: "inactive",
-      registeredAt: "2025-08-20",
-      approvedAt: "2025-08-21",
-      patientCount: 23,
-    },
-  ];
-
-  const filteredDoctors = mockDoctors.filter((doctor) => {
-    const matchesSearch =
-      doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || doctor.status === statusFilter;
-    return matchesSearch && matchesStatus;
   });
 
-  const handleLogout = async () => {
-    try {
-      await authService.logout();
-      queryClient.removeQueries({ queryKey: ["user"] });
-      navigate("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-      navigate("/login");
-    }
-  };
+  const doctors: Doctor[] = doctorsData?.data || [];
+
+  // Approve doctor mutation
+  const approveMutation = useMutation({
+    mutationFn: async (doctorId: number) => {
+      const response = await apiClient.post(
+        `/admin/doctors/${doctorId}/approve`
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Doctor approved successfully!");
+      queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
+    },
+    onError: () => {
+      toast.error("Failed to approve doctor");
+    },
+  });
+
+  // Reject doctor mutation
+  const rejectMutation = useMutation({
+    mutationFn: async (doctorId: number) => {
+      const response = await apiClient.post(
+        `/admin/doctors/${doctorId}/reject`
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Doctor rejected successfully!");
+      queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
+    },
+    onError: () => {
+      toast.error("Failed to reject doctor");
+    },
+  });
+
+  // Toggle status mutation
+  const toggleStatusMutation = useMutation({
+    mutationFn: async (doctorId: number) => {
+      const response = await apiClient.post(
+        `/admin/doctors/${doctorId}/toggle-status`
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Doctor status updated successfully!");
+      queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
+    },
+    onError: () => {
+      toast.error("Failed to update doctor status");
+    },
+  });
+
+  // Add doctor mutation
+  const addDoctorMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      const response = await apiClient.post("/admin/doctors", data);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Doctor added successfully!");
+      queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
+      setShowAddModal(false);
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        specialization: "",
+        license_number: "",
+        password: "",
+      });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to add doctor");
+    },
+  });
+
+  // Update doctor mutation
+  const updateDoctorMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Partial<typeof formData>;
+    }) => {
+      const response = await apiClient.put(`/admin/doctors/${id}`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Doctor updated successfully!");
+      queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
+      setShowEditModal(false);
+      setSelectedDoctor(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update doctor");
+    },
+  });
+
+  // Delete doctor mutation
+  const deleteDoctorMutation = useMutation({
+    mutationFn: async (doctorId: number) => {
+      const response = await apiClient.delete(`/admin/doctors/${doctorId}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Doctor deleted successfully!");
+      queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to delete doctor");
+    },
+  });
 
   const handleApprove = (doctorId: number) => {
-    // TODO: Implement approve doctor API call
-    console.log(`Approving doctor ID: ${doctorId}`);
+    toast.custom(
+      (t) => (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop đen mờ + blur */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            style={{ margin: "-100vh -100vw", padding: "100vh 100vw" }}
+          />
+          {/* Toast content */}
+          <div className="relative bg-white shadow-2xl rounded-lg p-6 max-w-md w-full border-2 border-green-200 mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <div>
+                <p className="font-bold text-gray-900">Approve Doctor</p>
+                <p className="text-sm text-gray-600">
+                  Confirm to approve this doctor account
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  approveMutation.mutate(doctorId);
+                  toast.dismiss(t.id);
+                }}
+                className="flex-1 bg-green-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-green-700 transition-colors"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="flex-1 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ),
+      { duration: Infinity }
+    );
   };
 
   const handleReject = (doctorId: number) => {
-    // TODO: Implement reject doctor API call
-    console.log(`Rejecting doctor ID: ${doctorId}`);
+    toast.custom(
+      (t) => (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop đen mờ + blur */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            style={{ margin: "-100vh -100vw", padding: "100vh 100vw" }}
+          />
+          {/* Toast content */}
+          <div className="relative bg-white shadow-2xl rounded-lg p-6 max-w-md w-full border-2 border-red-200 mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </div>
+              <div>
+                <p className="font-bold text-gray-900">Reject Doctor</p>
+                <p className="text-sm text-gray-600">
+                  Confirm to reject this doctor account
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  rejectMutation.mutate(doctorId);
+                  toast.dismiss(t.id);
+                }}
+                className="flex-1 bg-red-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-red-700 transition-colors"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="flex-1 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ),
+      { duration: Infinity }
+    );
   };
 
   const handleDeactivate = (doctorId: number) => {
-    // TODO: Implement deactivate doctor API call
-    console.log(`Deactivating doctor ID: ${doctorId}`);
+    toast.custom(
+      (t) => (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop đen mờ + blur */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            style={{ margin: "-100vh -100vw", padding: "100vh 100vw" }}
+          />
+          {/* Toast content */}
+          <div className="relative bg-white shadow-2xl rounded-lg p-6 max-w-md w-full border-2 border-orange-200 mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-orange-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <p className="font-bold text-gray-900">Change Status</p>
+                <p className="text-sm text-gray-600">
+                  Confirm to change this doctor's status
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  toggleStatusMutation.mutate(doctorId);
+                  toast.dismiss(t.id);
+                }}
+                className="flex-1 bg-orange-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-orange-700 transition-colors"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="flex-1 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ),
+      { duration: Infinity }
+    );
   };
+
+  const handleDelete = (doctorId: number) => {
+    toast.custom(
+      (t) => (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop đen mờ + blur */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            style={{ margin: "-100vh -100vw", padding: "100vh 100vw" }}
+          />
+          {/* Toast content */}
+          <div className="relative bg-white shadow-2xl rounded-lg p-6 max-w-md w-full border-2 border-red-300 mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </div>
+              <div>
+                <p className="font-bold text-red-900">Delete Doctor</p>
+                <p className="text-sm text-red-600">
+                  This action cannot be undone
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  deleteDoctorMutation.mutate(doctorId);
+                  toast.dismiss(t.id);
+                }}
+                className="flex-1 bg-red-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="flex-1 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ),
+      { duration: Infinity }
+    );
+  };
+
+  const handleViewDoctor = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    setShowViewModal(true);
+  };
+
+  const handleEditDoctor = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    setFormData({
+      name: doctor.name,
+      email: doctor.email,
+      phone: doctor.phone || "",
+      specialization: doctor.specialization || "",
+      license_number: doctor.license_number || "",
+      password: "",
+    });
+    setShowEditModal(true);
+  };
+
+  const handleAddDoctor = () => {
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      specialization: "",
+      license_number: "",
+      password: "",
+    });
+    setShowAddModal(true);
+  };
+
+  const handleSubmitAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    addDoctorMutation.mutate(formData);
+  };
+
+  const handleSubmitEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedDoctor) {
+      updateDoctorMutation.mutate({
+        id: selectedDoctor.id,
+        data: formData,
+      });
+    }
+  };
+
+  const filteredDoctors = doctors;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -122,254 +455,138 @@ export function DoctorManagementPage() {
         return "bg-yellow-100 text-yellow-800";
       case "inactive":
         return "bg-gray-100 text-gray-800";
+      case "rejected":
+        return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
 
-  const pendingCount = mockDoctors.filter((d) => d.status === "pending").length;
-  const activeCount = mockDoctors.filter((d) => d.status === "active").length;
+  const pendingCount = doctors.filter((d) => d.status === "pending").length;
+  const activeCount = doctors.filter((d) => d.status === "active").length;
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo and Title */}
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => navigate("/admin/dashboard")}
-                className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center hover:bg-purple-700 transition-colors"
-              >
-                <svg
-                  className="w-5 h-5 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                  />
-                </svg>
-              </button>
-              <h1 className="text-xl font-semibold text-gray-900">
-                Doctor Management
-              </h1>
-            </div>
-
-            {/* User Info and Actions */}
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">
-                Welcome,{" "}
-                <span className="font-medium text-gray-900">{user?.name}</span>
-              </span>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <div className="max-w-7xl mx-auto">
+        <div className="space-y-6">
           {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-gray-900">
                   Doctor Management
-                </h2>
-                <p className="mt-2 text-gray-600">
+                </h1>
+                <p className="text-gray-500 mt-1">
                   Manage doctor registrations, approvals, and access permissions
                 </p>
               </div>
-              <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+              <button
+                onClick={handleAddDoctor}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
                 + Add New Doctor
               </button>
             </div>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-green-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Active Doctors
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {activeCount}
-                  </p>
-                </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-500">
+                  Active Doctors
+                </p>
+                <p className="text-2xl font-semibold text-green-600 mt-2">
+                  {activeCount}
+                </p>
               </div>
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-yellow-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Pending Approval
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {pendingCount}
-                  </p>
-                </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-500">
+                  Pending Approval
+                </p>
+                <p className="text-2xl font-semibold text-yellow-600 mt-2">
+                  {pendingCount}
+                </p>
               </div>
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Total Patients
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {mockDoctors.reduce(
-                      (sum, doctor) => sum + doctor.patientCount,
-                      0
-                    )}
-                  </p>
-                </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-500">
+                  Total Patients
+                </p>
+                <p className="text-2xl font-semibold text-blue-600 mt-2">
+                  {doctors.reduce(
+                    (sum: number, doctor: Doctor) =>
+                      sum + (doctor.patient_count || 0),
+                    0
+                  )}
+                </p>
               </div>
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-purple-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Specializations
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {new Set(mockDoctors.map((d) => d.specialization)).size}
-                  </p>
-                </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-500">
+                  Specializations
+                </p>
+                <p className="text-2xl font-semibold text-purple-600 mt-2">
+                  {
+                    new Set(
+                      doctors
+                        .filter((d: Doctor) => d.specialization)
+                        .map((d: Doctor) => d.specialization)
+                    ).size
+                  }
+                </p>
               </div>
             </div>
           </div>
 
           {/* Search and Filters */}
-          <div className="bg-white rounded-lg shadow mb-6">
-            <div className="p-6">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <label htmlFor="search" className="sr-only">
-                    Search doctors
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
-                    </div>
-                    <input
-                      id="search"
-                      type="text"
-                      placeholder="Search by name, email, or specialization..."
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="flex space-x-2">
-                  <select
-                    className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-purple-500 focus:border-purple-500"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="pending">Pending</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="search"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Search
+                </label>
+                <input
+                  id="search"
+                  type="text"
+                  placeholder="Search by name, email, or specialization..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="status-filter"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Status Filter
+                </label>
+                <select
+                  id="status-filter"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="pending">Pending</option>
+                  <option value="inactive">Inactive</option>
+                </select>
               </div>
             </div>
           </div>
@@ -382,165 +599,634 @@ export function DoctorManagementPage() {
               </h3>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Doctor
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Specialization
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      License
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Patients
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Registration
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredDoctors.map((doctor) => (
-                    <tr key={doctor.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-medium text-sm">
-                              {doctor.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .slice(0, 2)}
-                            </span>
+            {isDoctorsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            ) : filteredDoctors.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                No doctors found
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Doctor
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Specialization
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Patients
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Registration
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredDoctors.map((doctor: Doctor) => (
+                      <tr key={doctor.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-blue-600 font-medium text-sm">
+                                {doctor.name
+                                  .split(" ")
+                                  .map((n: string) => n[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="ml-3">
+                              <div className="text-sm font-medium text-gray-900">
+                                {doctor.name}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {doctor.email}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {doctor.phone || "N/A"}
+                              </div>
+                            </div>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {doctor.name}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {doctor.email}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                              {doctor.phone}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {doctor.specialization}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {doctor.license}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {doctor.patientCount} patients
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(
-                            doctor.status
-                          )}`}
-                        >
-                          {doctor.status.charAt(0).toUpperCase() +
-                            doctor.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {doctor.specialization || "N/A"}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {doctor.patient_count} patients
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(
+                              doctor.status
+                            )}`}
+                          >
+                            {doctor.status.charAt(0).toUpperCase() +
+                              doctor.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-xs text-gray-900">
                           <div>
                             Registered:{" "}
-                            {new Date(doctor.registeredAt).toLocaleDateString(
+                            {new Date(doctor.created_at).toLocaleDateString(
                               "vi-VN"
                             )}
                           </div>
-                          {doctor.approvedAt && (
-                            <div className="text-xs text-green-600">
+                          {doctor.approved_at && (
+                            <div className="text-green-600">
                               Approved:{" "}
-                              {new Date(doctor.approvedAt).toLocaleDateString(
+                              {new Date(doctor.approved_at).toLocaleDateString(
                                 "vi-VN"
                               )}
                             </div>
                           )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-2">
-                          {doctor.status === "pending" && (
-                            <>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-2">
+                            {doctor.status === "pending" && (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(doctor.id)}
+                                  className="text-green-600 hover:text-green-900 text-xs bg-green-100 px-2 py-1 rounded"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleReject(doctor.id)}
+                                  className="text-red-600 hover:text-red-900 text-xs bg-red-100 px-2 py-1 rounded"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            {doctor.status === "active" && (
                               <button
-                                onClick={() => handleApprove(doctor.id)}
+                                onClick={() => handleDeactivate(doctor.id)}
+                                className="text-orange-600 hover:text-orange-900 text-xs bg-orange-100 px-2 py-1 rounded"
+                              >
+                                Deactivate
+                              </button>
+                            )}
+                            {doctor.status === "inactive" && (
+                              <button
+                                onClick={() => handleDeactivate(doctor.id)}
                                 className="text-green-600 hover:text-green-900 text-xs bg-green-100 px-2 py-1 rounded"
                               >
-                                Approve
+                                Activate
                               </button>
+                            )}
+                            <button
+                              onClick={() => handleViewDoctor(doctor)}
+                              className="text-blue-600 hover:text-blue-900 text-xs bg-blue-100 px-2 py-1 rounded"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => handleEditDoctor(doctor)}
+                              className="text-purple-600 hover:text-purple-900 text-xs bg-purple-100 px-2 py-1 rounded"
+                            >
+                              Edit
+                            </button>
+                            {doctor.status !== "active" && (
                               <button
-                                onClick={() => handleReject(doctor.id)}
+                                onClick={() => handleDelete(doctor.id)}
                                 className="text-red-600 hover:text-red-900 text-xs bg-red-100 px-2 py-1 rounded"
                               >
-                                Reject
+                                Delete
                               </button>
-                            </>
-                          )}
-                          {doctor.status === "active" && (
-                            <button
-                              onClick={() => handleDeactivate(doctor.id)}
-                              className="text-orange-600 hover:text-orange-900 text-xs bg-orange-100 px-2 py-1 rounded"
-                            >
-                              Deactivate
-                            </button>
-                          )}
-                          <button className="text-blue-600 hover:text-blue-900 text-xs bg-blue-100 px-2 py-1 rounded">
-                            View
-                          </button>
-                          <button className="text-gray-600 hover:text-gray-900 text-xs bg-gray-100 px-2 py-1 rounded">
-                            Edit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {filteredDoctors.length === 0 && (
-              <div className="text-center py-12">
-                <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  No doctors found
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm
-                    ? "Try adjusting your search criteria."
-                    : "Get started by adding your first doctor."}
-                </p>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
+
+          {/* View Doctor Modal */}
+          {showViewModal && selectedDoctor && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              {/* Backdrop đen mờ + blur */}
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+              {/* Modal content */}
+              <div className="relative bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Doctor Details
+                  </h3>
+                  <button
+                    onClick={() => setShowViewModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  {/* Avatar and Name */}
+                  <div className="flex items-center space-x-4">
+                    <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 font-bold text-2xl">
+                        {selectedDoctor.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <h4 className="text-2xl font-bold text-gray-900">
+                        {selectedDoctor.name}
+                      </h4>
+                      <p className="text-gray-600">
+                        {selectedDoctor.specialization || "General Practice"}
+                      </p>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-2 ${getStatusBadge(
+                          selectedDoctor.status
+                        )}`}
+                      >
+                        {selectedDoctor.status.charAt(0).toUpperCase() +
+                          selectedDoctor.status.slice(1)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">
+                        Email
+                      </label>
+                      <p className="mt-1 text-gray-900">
+                        {selectedDoctor.email}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">
+                        Phone
+                      </label>
+                      <p className="mt-1 text-gray-900">
+                        {selectedDoctor.phone || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">
+                        License Number
+                      </label>
+                      <p className="mt-1 text-gray-900">
+                        {selectedDoctor.license_number || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">
+                        Total Patients
+                      </label>
+                      <p className="mt-1 text-gray-900">
+                        {selectedDoctor.patient_count} patients
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">
+                        Registration Date
+                      </label>
+                      <p className="mt-1 text-gray-900">
+                        {new Date(selectedDoctor.created_at).toLocaleDateString(
+                          "vi-VN"
+                        )}
+                      </p>
+                    </div>
+                    {selectedDoctor.approved_at && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">
+                          Approval Date
+                        </label>
+                        <p className="mt-1 text-gray-900">
+                          {new Date(
+                            selectedDoctor.approved_at
+                          ).toLocaleDateString("vi-VN")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                    {selectedDoctor.status === "pending" && (
+                      <>
+                        <button
+                          onClick={() => {
+                            handleApprove(selectedDoctor.id);
+                            setShowViewModal(false);
+                          }}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium"
+                        >
+                          Approve Doctor
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleReject(selectedDoctor.id);
+                            setShowViewModal(false);
+                          }}
+                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowViewModal(false);
+                        handleEditDoctor(selectedDoctor);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
+                    >
+                      Edit Doctor
+                    </button>
+                    <button
+                      onClick={() => setShowViewModal(false)}
+                      className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Add Doctor Modal */}
+          {showAddModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              {/* Backdrop đen mờ + blur */}
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+              {/* Modal content */}
+              <div className="relative bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Add New Doctor
+                  </h3>
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmitAdd} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Dr. John Doe"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="doctor@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Password *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="••••••••"
+                      minLength={6}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0123456789"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Specialization
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.specialization}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          specialization: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g. Cardiology, Pediatrics"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      License Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.license_number}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          license_number: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="License number"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={addDoctorMutation.isPending}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+                    >
+                      {addDoctorMutation.isPending ? "Adding..." : "Add Doctor"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Doctor Modal */}
+          {showEditModal && selectedDoctor && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              {/* Backdrop đen mờ + blur */}
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+              {/* Modal content */}
+              <div className="relative bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Edit Doctor
+                  </h3>
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmitEdit} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      New Password (leave blank to keep current)
+                    </label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="••••••••"
+                      minLength={6}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Specialization
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.specialization}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          specialization: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      License Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.license_number}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          license_number: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <button
+                      type="button"
+                      onClick={() => setShowEditModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={updateDoctorMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+                    >
+                      {updateDoctorMutation.isPending
+                        ? "Updating..."
+                        : "Update Doctor"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

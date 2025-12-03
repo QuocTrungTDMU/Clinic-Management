@@ -77,52 +77,63 @@ export function TransactionsPage() {
 
   const handlePrintReceipt = async (transactionId: number) => {
     try {
-      const response = await apiClient.get(`/pharmacy/receipt/${transactionId}`);
+      const response = await apiClient.get(
+        `/pharmacy/receipt/${transactionId}`
+      );
       const receiptData = response.data;
-      
+
       // Open print window
-      const printWindow = window.open('', '_blank');
+      const printWindow = window.open("", "_blank");
       if (!printWindow) {
-        toast.error('Please allow popups to print receipt');
+        toast.error("Please allow popups to print receipt");
         return;
       }
-      
+
       printWindow.document.write(generateReceiptHTML(receiptData));
       printWindow.document.close();
       printWindow.focus();
       printWindow.print();
     } catch (error) {
-      console.error('Failed to print receipt:', error);
-      toast.error('Failed to load receipt');
+      console.error("Failed to print receipt:", error);
+      toast.error("Failed to load receipt");
     }
   };
 
   const generateReceiptHTML = (data: any) => {
     const { transaction, clinic_info, print_date } = data;
-    
-    const itemsHTML = transaction.prescription.items.map((item: any, index: number) => {
-      return `
+
+    const itemsHTML = transaction.prescription.items
+      .map((item: any, index: number) => {
+        return `
         <tr>
           <td>${index + 1}</td>
-          <td>${item.medicine_name}${item.strength ? ` (${item.strength})` : ''}</td>
+          <td>${item.medicine_name}${
+          item.strength ? ` (${item.strength})` : ""
+        }</td>
           <td>${item.quantity_dispensed || item.quantity}</td>
-          <td>${Number(item.unit_price).toLocaleString('vi-VN')}đ</td>
-          <td>${Number(item.total_price).toLocaleString('vi-VN')}đ</td>
+          <td>${Number(item.unit_price).toLocaleString("vi-VN")}đ</td>
+          <td>${Number(item.total_price).toLocaleString("vi-VN")}đ</td>
         </tr>
       `;
-    }).join('');
-    
-    const paymentInfoHTML = transaction.payment_method === 'cash' && transaction.paid_amount ? `
+      })
+      .join("");
+
+    const paymentInfoHTML =
+      transaction.payment_method === "cash" && transaction.paid_amount
+        ? `
       <tr>
         <td colspan="4" style="text-align: right;">Tiền khách đưa:</td>
-        <td>${Number(transaction.paid_amount).toLocaleString('vi-VN')}đ</td>
+        <td>${Number(transaction.paid_amount).toLocaleString("vi-VN")}đ</td>
       </tr>
       <tr>
         <td colspan="4" style="text-align: right;">Tiền thừa:</td>
-        <td>${Number(transaction.change_amount || 0).toLocaleString('vi-VN')}đ</td>
+        <td>${Number(transaction.change_amount || 0).toLocaleString(
+          "vi-VN"
+        )}đ</td>
       </tr>
-    ` : '';
-    
+    `
+        : "";
+
     return `
       <!DOCTYPE html>
       <html>
@@ -142,18 +153,24 @@ export function TransactionsPage() {
       </head>
       <body>
         <div class="header">
-          <h1>${clinic_info.name || 'Clinic Management System'}</h1>
-          <p>${clinic_info.address || ''}</p>
-          <p>Tel: ${clinic_info.phone || ''} | Email: ${clinic_info.email || ''}</p>
+          <h1>${clinic_info.name || "Clinic Management System"}</h1>
+          <p>${clinic_info.address || ""}</p>
+          <p>Tel: ${clinic_info.phone || ""} | Email: ${
+      clinic_info.email || ""
+    }</p>
         </div>
         
-        <h2 style="text-align: center;">HÓA ĐƠN BÁN THUỐC</h2>
+        <h2 style="text-align: center;">PHIẾU PHÁT THUỐC</h2>
         
         <div class="info">
           <p><strong>Số hóa đơn:</strong> #${transaction.id}</p>
-          <p><strong>Ngày:</strong> ${new Date(transaction.transaction_date).toLocaleString('vi-VN')}</p>
+          <p><strong>Ngày:</strong> ${new Date(
+            transaction.transaction_date
+          ).toLocaleString("vi-VN")}</p>
           <p><strong>Bệnh nhân:</strong> ${transaction.patient.name}</p>
-          <p><strong>Số điện thoại:</strong> ${transaction.patient.phone || 'N/A'}</p>
+          <p><strong>Số điện thoại:</strong> ${
+            transaction.patient.phone || "N/A"
+          }</p>
           <p><strong>Dược sĩ:</strong> ${transaction.pharmacist.name}</p>
         </div>
         
@@ -173,7 +190,9 @@ export function TransactionsPage() {
           <tfoot>
             <tr class="total">
               <td colspan="4" style="text-align: right;">Tổng cộng:</td>
-              <td>${Number(transaction.total_amount).toLocaleString('vi-VN')}đ</td>
+              <td>${Number(transaction.total_amount).toLocaleString(
+                "vi-VN"
+              )}đ</td>
             </tr>
             ${paymentInfoHTML}
           </tfoot>
@@ -211,10 +230,10 @@ export function TransactionsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Transaction History
+            Lịch Sử Phát Thuốc
           </h1>
           <p className="text-gray-600 mt-1">
-            View all pharmacy sales transactions
+            Xem lịch sử các lần phát thuốc cho bệnh nhân
           </p>
         </div>
       </div>

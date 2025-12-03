@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Prescription;
 use App\Models\PharmacyTransaction;
 use App\Models\Medicine;
+use App\Models\BillingInvoice;
+use App\Models\MedicineReservation;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -15,11 +17,19 @@ class PharmacyController extends Controller
 {
     /**
      * Get pending prescriptions (waiting to be dispensed)
+     * Only show prescriptions with paid invoices
      */
     public function getPendingPrescriptions(Request $request): JsonResponse
     {
-        $query = Prescription::with(['patient', 'doctor', 'medicalRecord', 'items'])
+        // Get prescriptions that have paid billing invoices and pending medicine reservations
+        $query = Prescription::with(['patient', 'doctor', 'medicalRecord', 'items', 'billingInvoice'])
             ->where('status', 'pending')
+            ->whereHas('billingInvoice', function ($q) {
+                $q->where('status', 'paid');
+            })
+            ->whereHas('medicineReservations', function ($q) {
+                $q->where('status', 'reserved');
+            })
             ->orderBy('created_at', 'desc');
 
         // Filter by date if provided
@@ -96,15 +106,16 @@ class PharmacyController extends Controller
 
     /**
      * Dispense prescription (sell medicine and create transaction)
+     * Updated to use medicine reservations and verify payment
      */
     public function dispensePrescription(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'payment_method' => 'required|in:cash,card,transfer,insurance',
             'notes' => 'nullable|string',
         ]);
 
-        $prescription = Prescription::with('items')->findOrFail($id);
+        $prescription = Prescription::with(['items', 'billingInvoice', 'medicineReservations'])
+            ->findOrFail($id);
 
         // Check if already dispensed
         if ($prescription->status === 'dispensed') {
@@ -113,45 +124,58 @@ class PharmacyController extends Controller
             ], 400);
         }
 
+        // Verify that billing invoice is paid
+        if (!$prescription->billingInvoice || $prescription->billingInvoice->status !== 'paid') {
+            return response()->json([
+                'message' => 'Hóa đơn chưa được thanh toán. Vui lòng yêu cầu bệnh nhân thanh toán tại phòng kế toán trước.'
+            ], 400);
+        }
+
         try {
             DB::beginTransaction();
 
-            // Check stock and update inventory
-            foreach ($prescription->items as $item) {
-                $medicine = Medicine::where('name', $item->medicine_name)
-                    ->where('status', 'active')
-                    ->first();
+            // Mark all medicine reservations as dispensed (this will deduct real stock)
+            $reservations = $prescription->medicineReservations()
+                ->where('status', 'reserved')
+                ->get();
 
-                if (!$medicine) {
-                    DB::rollBack();
-                    return response()->json([
-                        'message' => "Thuốc '{$item->medicine_name}' không tìm thấy trong kho"
-                    ], 400);
-                }
-
-                if ($medicine->stock_quantity < $item->quantity) {
-                    DB::rollBack();
-                    return response()->json([
-                        'message' => "Thuốc '{$item->medicine_name}' không đủ số lượng trong kho. Còn {$medicine->stock_quantity}, cần {$item->quantity}"
-                    ], 400);
-                }
-
-                // Decrease stock
-                $medicine->stock_quantity -= $item->quantity;
-                $medicine->save();
+            if ($reservations->isEmpty()) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'Không tìm thấy thuốc đã được đặt trước cho đơn này.'
+                ], 400);
             }
 
-            // Create pharmacy transaction
-            $transaction = PharmacyTransaction::create([
-                'prescription_id' => $prescription->id,
-                'patient_id' => $prescription->patient_id,
-                'pharmacist_id' => Auth::id(),
-                'total_amount' => $prescription->total_cost,
-                'payment_method' => $request->payment_method,
-                'payment_status' => 'paid',
-                'transaction_date' => now(),
-                'notes' => $request->notes,
-            ]);
+            foreach ($reservations as $reservation) {
+                // This method will deduct real stock and update status
+                $reservation->markAsDispensed(Auth::id());
+            }
+
+            // Update pharmacy transaction status (created by accountant)
+            $pharmacyTransaction = PharmacyTransaction::where('prescription_id', $prescription->id)
+                ->where('status', 'paid_pending_dispensing')
+                ->first();
+
+            if ($pharmacyTransaction) {
+                $pharmacyTransaction->update([
+                    'pharmacist_id' => Auth::id(),
+                    'status' => 'completed',
+                    'notes' => $request->notes,
+                ]);
+            } else {
+                // Fallback: create transaction if not exists (shouldn't happen in normal flow)
+                $pharmacyTransaction = PharmacyTransaction::create([
+                    'prescription_id' => $prescription->id,
+                    'patient_id' => $prescription->patient_id,
+                    'pharmacist_id' => Auth::id(),
+                    'total_amount' => $prescription->total_cost,
+                    'payment_method' => $prescription->billingInvoice->payment_method,
+                    'payment_status' => 'paid',
+                    'status' => 'completed',
+                    'transaction_date' => now(),
+                    'notes' => $request->notes,
+                ]);
+            }
 
             // Update prescription status
             $prescription->update([
@@ -163,16 +187,16 @@ class PharmacyController extends Controller
             DB::commit();
 
             // Load relationships for response
-            $transaction->load(['prescription.items', 'patient', 'pharmacist']);
+            $pharmacyTransaction->load(['prescription.items', 'patient', 'pharmacist']);
 
             return response()->json([
-                'message' => 'Bán thuốc thành công',
-                'transaction' => $transaction
+                'message' => 'Phát thuốc thành công',
+                'transaction' => $pharmacyTransaction
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'message' => 'Có lỗi xảy ra khi bán thuốc',
+                'message' => 'Có lỗi xảy ra khi phát thuốc',
                 'error' => $e->getMessage()
             ], 500);
         }

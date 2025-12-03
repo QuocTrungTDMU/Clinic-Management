@@ -26,8 +26,12 @@ export function PharmacistLayout() {
 
   const navigation = [
     { name: "Dashboard", href: "/pharmacist/dashboard", icon: "📊" },
-    { name: "Đơn Thuốc Chờ", href: "/pharmacist/pending", icon: "📋" },
-    { name: "Lịch Sử Bán", href: "/pharmacist/transactions", icon: "💰" },
+    { name: "Đơn Thuốc Chờ Phát", href: "/pharmacist/pending", icon: "📋" },
+    {
+      name: "Lịch Sử Phát Thuốc",
+      href: "/pharmacist/transactions",
+      icon: "💰",
+    },
     { name: "Quản Lý Kho", href: "/pharmacist/inventory", icon: "📦" },
   ];
 

@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import api from "../../lib/axios";
 import PatientHistoryModal from "../../components/PatientHistoryModal";
+import { DoctorLayout } from "../../components/DoctorLayout";
 import {
   chiefComplaints,
-  diagnoses,
   physicalExamFindings,
   normalVitalSigns,
 } from "../../data/medicalOptions";
@@ -80,8 +79,48 @@ interface Medicine {
   usage_instructions: string;
 }
 
+interface LabTestType {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  description: string;
+  price: number;
+}
+
+interface ICD10Code {
+  id: number;
+  code: string;
+  name: string;
+  name_en: string;
+  category: string;
+  description?: string;
+  specialty: string;
+  is_common: boolean;
+}
+
+interface LabTest {
+  id: number;
+  medical_record_id: number;
+  lab_test_type_id: number;
+  status: "pending" | "in_progress" | "completed" | "cancelled";
+  result: string | null;
+  interpretation: string | null;
+  clinical_notes: string | null;
+  ordered_at: string;
+  completed_at: string | null;
+  lab_test_type: LabTestType;
+  ordered_by: {
+    id: number;
+    name: string;
+  };
+  performed_by?: {
+    id: number;
+    name: string;
+  } | null;
+}
+
 export function ExaminationPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showExaminationForm, setShowExaminationForm] = useState(false);
@@ -94,6 +133,20 @@ export function ExaminationPage() {
   const [useCustomPhysicalExam, setUseCustomPhysicalExam] = useState(false);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [selectedFindings, setSelectedFindings] = useState<string[]>([]);
+
+  // ICD-10 search states
+  const [icd10SearchQuery, setIcd10SearchQuery] = useState("");
+  const [showIcd10Dropdown, setShowIcd10Dropdown] = useState(false);
+  const [selectedIcd10, setSelectedIcd10] = useState<ICD10Code | null>(null);
+
+  // Helper function to get localStorage key for appointment
+  const getLocalStorageKey = (appointmentId: number) => {
+    return `examination_draft_${appointmentId}`;
+  };
+
+  // Lab test states
+  const [selectedLabTests, setSelectedLabTests] = useState<number[]>([]);
+  const [labTestsSubmitted, setLabTestsSubmitted] = useState(false);
 
   // Medicine search states
   const [medicineSearchResults, setMedicineSearchResults] = useState<
@@ -117,6 +170,21 @@ export function ExaminationPage() {
       document.removeEventListener("click", handleClickOutside);
     };
   }, [showMedicineDropdown]);
+
+  // Close ICD-10 dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.icd10-search-container')) {
+        setShowIcd10Dropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Medical record form state
   const [medicalRecord, setMedicalRecord] = useState<MedicalRecordData>({
@@ -149,6 +217,80 @@ export function ExaminationPage() {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
+  // Fetch lab test types
+  const { data: labTestTypes } = useQuery({
+    queryKey: ["lab-test-types"],
+    queryFn: async () => {
+      const response = await api.get("/lab-test-types");
+      return response.data as LabTestType[];
+    },
+  });
+
+  // Fetch ICD-10 codes based on search query
+  const { data: icd10Results = [] } = useQuery<ICD10Code[]>({
+    queryKey: ["icd10-search", icd10SearchQuery],
+    queryFn: async () => {
+      if (!icd10SearchQuery || icd10SearchQuery.length < 2) return [];
+      const response = await api.get("/icd10/search", {
+        params: {
+          q: icd10SearchQuery,
+          limit: 20,
+        },
+      });
+      // API trả về pagination, lấy data
+      return response.data.data || response.data;
+    },
+    enabled: icd10SearchQuery.length >= 2,
+  });
+
+  // Fetch lab tests for current appointment (KHÔNG CẦN medical_record_id)
+  const { data: labTests, refetch: refetchLabTests } = useQuery({
+    queryKey: ["lab-tests-for-appointment", selectedPatient?.appointment_id],
+    queryFn: async () => {
+      if (!selectedPatient?.appointment_id) return [];
+      const response = await api.get(
+        `/lab-tests/appointment/${selectedPatient.appointment_id}`
+      );
+      return response.data as LabTest[];
+    },
+    enabled: !!selectedPatient?.appointment_id,
+    refetchInterval: 5000, // Auto refetch every 5 seconds để xem kết quả mới (giảm từ 10s xuống 5s)
+  });
+
+  // Track lab test results and show notification when new results arrive
+  const [previousLabTestResults, setPreviousLabTestResults] = useState<Set<number>>(new Set());
+  
+  useEffect(() => {
+    if (labTests && labTests.length > 0) {
+      const currentCompletedIds = new Set(
+        labTests
+          .filter(test => test.status === 'completed' && test.result)
+          .map(test => test.id)
+      );
+      
+      // Check for new completed tests
+      const newCompletedTests = labTests.filter(
+        test => test.status === 'completed' && 
+                test.result && 
+                !previousLabTestResults.has(test.id)
+      );
+      
+      if (newCompletedTests.length > 0 && previousLabTestResults.size > 0) {
+        newCompletedTests.forEach(test => {
+          toast.success(
+            `✅ Kết quả xét nghiệm mới: ${test.lab_test_type.name}`,
+            {
+              duration: 5000,
+              icon: '🧪',
+            }
+          );
+        });
+      }
+      
+      setPreviousLabTestResults(currentCompletedIds);
+    }
+  }, [labTests, previousLabTestResults]);
+
   // Fetch patient medical history
   const { data: patientHistory } = useQuery({
     queryKey: ["patient-history", historyPatientId],
@@ -162,14 +304,46 @@ export function ExaminationPage() {
     enabled: !!historyPatientId,
   });
 
+  // Auto-save form data to localStorage whenever medicalRecord changes
+  useEffect(() => {
+    if (selectedPatient && medicalRecord.appointment_id > 0) {
+      const key = getLocalStorageKey(medicalRecord.appointment_id);
+      const dataToSave = {
+        medicalRecord,
+        selectedSymptoms,
+        selectedFindings,
+        selectedLabTests,
+        useCustomComplaint,
+        useCustomDiagnosis,
+        useCustomPhysicalExam,
+        timestamp: new Date().toISOString(),
+      };
+      localStorage.setItem(key, JSON.stringify(dataToSave));
+      console.log('📝 Auto-saved examination form to localStorage');
+    }
+  }, [medicalRecord, selectedSymptoms, selectedFindings, selectedLabTests, useCustomComplaint, useCustomDiagnosis, useCustomPhysicalExam, selectedPatient]);
+
+  // Clear localStorage when form is closed without completion
+  const clearDraftData = (appointmentId: number) => {
+    const key = getLocalStorageKey(appointmentId);
+    localStorage.removeItem(key);
+    console.log('🗑️ Cleared draft data from localStorage');
+  };
+
   // Create medical record mutation
   const createMedicalRecordMutation = useMutation({
     mutationFn: async (data: MedicalRecordData) => {
       const response = await api.post("/medical-records", data);
       return response.data;
     },
-    onSuccess: () => {
-      toast.success("Medical record created successfully!");
+    onSuccess: async (responseData) => {
+      toast.success("Đã lưu hồ sơ khám bệnh!");
+
+      // Clear localStorage draft after successful completion
+      if (selectedPatient) {
+        clearDraftData(selectedPatient.appointment_id);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["doctor-queue"] });
       setShowExaminationForm(false);
       setSelectedPatient(null);
@@ -179,6 +353,35 @@ export function ExaminationPage() {
       toast.error(
         error.response?.data?.message || "Failed to create medical record"
       );
+    },
+  });
+
+  // Submit lab test requests mutation (KHÔNG TẠO medical record)
+  const submitLabTestsMutation = useMutation({
+    mutationFn: async ({ labTestIds }: { labTestIds: number[] }) => {
+      // GỬI LAB TEST REQUEST mà KHÔNG TẠO medical record
+      // Medical record chỉ được tạo khi bác sĩ click "Hoàn Thành Khám"
+      
+      const promises = labTestIds.map((labTestTypeId) =>
+        api.post("/lab-tests", {
+          appointment_id: selectedPatient?.appointment_id || 0,
+          patient_id: selectedPatient?.patient_id || 0,
+          lab_test_type_id: labTestTypeId,
+          clinical_notes:
+            medicalRecord.chief_complaint || "Yêu cầu từ bác sĩ khám bệnh",
+        })
+      );
+      return Promise.all(promises);
+    },
+    onSuccess: (_, variables) => {
+      toast.success(
+        `Đã gửi ${variables.labTestIds.length} yêu cầu xét nghiệm!`
+      );
+      setLabTestsSubmitted(true);
+      queryClient.invalidateQueries({ queryKey: ["lab-tests"] });
+    },
+    onError: () => {
+      toast.error("Có lỗi khi gửi yêu cầu xét nghiệm");
     },
   });
 
@@ -207,6 +410,8 @@ export function ExaminationPage() {
     setUseCustomPhysicalExam(false);
     setSelectedSymptoms([]);
     setSelectedFindings([]);
+    setSelectedLabTests([]);
+    setLabTestsSubmitted(false);
   };
 
   // Apply normal vital signs
@@ -302,12 +507,75 @@ export function ExaminationPage() {
   };
   const handleStartExamination = (patient: Patient) => {
     setSelectedPatient(patient);
-    setMedicalRecord((prev) => ({
-      ...prev,
+    
+    // Try to restore draft data from localStorage
+    const key = getLocalStorageKey(patient.appointment_id);
+    const savedData = localStorage.getItem(key);
+    
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        const savedTime = new Date(parsed.timestamp);
+        const now = new Date();
+        const hoursDiff = (now.getTime() - savedTime.getTime()) / (1000 * 60 * 60);
+        
+        // Only restore if saved within last 24 hours
+        if (hoursDiff < 24) {
+          setMedicalRecord(parsed.medicalRecord);
+          setSelectedSymptoms(parsed.selectedSymptoms || []);
+          setSelectedFindings(parsed.selectedFindings || []);
+          setSelectedLabTests(parsed.selectedLabTests || []);
+          setUseCustomComplaint(parsed.useCustomComplaint || false);
+          setUseCustomDiagnosis(parsed.useCustomDiagnosis || false);
+          setUseCustomPhysicalExam(parsed.useCustomPhysicalExam || false);
+          
+          toast.success('✅ Đã khôi phục dữ liệu form từ lần trước', {
+            duration: 3000,
+            icon: '📋',
+          });
+          console.log('✅ Restored draft data from localStorage');
+        } else {
+          // Clear old data
+          clearDraftData(patient.appointment_id);
+          initializeNewForm(patient);
+        }
+      } catch (error) {
+        console.error('Error parsing saved data:', error);
+        initializeNewForm(patient);
+      }
+    } else {
+      initializeNewForm(patient);
+    }
+    
+    setShowExaminationForm(true);
+  };
+
+  const initializeNewForm = (patient: Patient) => {
+    setMedicalRecord({
       appointment_id: patient.appointment_id,
       patient_id: patient.patient_id,
-    }));
-    setShowExaminationForm(true);
+      chief_complaint: "",
+      symptoms: "",
+      physical_examination: "",
+      vital_signs: {},
+      diagnosis: "",
+      treatment_plan: "",
+      follow_up_date: "",
+      notes: "",
+      prescription: {
+        general_instructions: "",
+        precautions: "",
+        diet_advice: "",
+        lifestyle_advice: "",
+        items: [],
+      },
+    });
+    setSelectedSymptoms([]);
+    setSelectedFindings([]);
+    setSelectedLabTests([]);
+    setUseCustomComplaint(false);
+    setUseCustomDiagnosis(false);
+    setUseCustomPhysicalExam(false);
   };
 
   const handleViewHistory = (patientId: number) => {
@@ -325,9 +593,9 @@ export function ExaminationPage() {
           {
             medicine_name: "",
             strength: "",
-            dosage: "",
-            frequency: "",
-            duration: "",
+            dosage: "1 viên",
+            frequency: "2 lần/ngày",
+            duration: "5 ngày",
             quantity: 1,
             unit_price: 0,
             instructions: "",
@@ -403,51 +671,17 @@ export function ExaminationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => navigate("/doctor")}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-              </button>
-              <h1 className="text-xl font-semibold text-gray-900">
-                Patient Examination
-              </h1>
-            </div>
-            <div className="text-sm text-gray-500">
-              {queueData?.total_count || 0} patients in queue
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <DoctorLayout>
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {!showExaminationForm ? (
           // Patient Queue View
           <div className="px-4 py-6 sm:px-0">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900">
-                Patient Queue
+                Danh Sách Bệnh Nhân
               </h2>
               <p className="mt-2 text-gray-600">
-                Select a patient to begin examination
+                Chọn bệnh nhân để bắt đầu khám
               </p>
             </div>
 
@@ -467,10 +701,10 @@ export function ExaminationPage() {
                   />
                 </svg>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No patients in queue
+                  Không có bệnh nhân
                 </h3>
                 <p className="text-gray-500">
-                  There are currently no patients waiting for examination.
+                  Hiện tại không có bệnh nhân nào đang chờ khám.
                 </p>
               </div>
             ) : (
@@ -503,23 +737,28 @@ export function ExaminationPage() {
                                 {patient.patient_name}
                               </h3>
                               <span className="ml-2 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                                In Progress
+                                Đang Khám
                               </span>
                             </div>
                             <div className="text-sm text-gray-500 space-y-1">
-                              <p>Phone: {patient.patient_phone}</p>
+                              <p>SĐT: {patient.patient_phone}</p>
                               <p>
-                                DOB:{" "}
+                                Ngày sinh:{" "}
                                 {new Date(
                                   patient.patient_dob
-                                ).toLocaleDateString()}
+                                ).toLocaleDateString("vi-VN")}
                               </p>
-                              <p>Gender: {patient.patient_gender}</p>
-                              <p>Appointment: {patient.appointment_time}</p>
-                              <p>Type: {patient.appointment_type}</p>
-                              {patient.reason && (
-                                <p>Reason: {patient.reason}</p>
-                              )}
+                              <p>
+                                Giới tính:{" "}
+                                {patient.patient_gender === "male"
+                                  ? "Nam"
+                                  : patient.patient_gender === "female"
+                                  ? "Nữ"
+                                  : patient.patient_gender}
+                              </p>
+                              <p>Giờ hẹn: {patient.appointment_time}</p>
+                              <p>Loại: {patient.appointment_type}</p>
+                              {patient.reason && <p>Lý do: {patient.reason}</p>}
                             </div>
                           </div>
                         </div>
@@ -530,13 +769,13 @@ export function ExaminationPage() {
                             }
                             className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                           >
-                            View History
+                            Xem Lịch Sử
                           </button>
                           <button
                             onClick={() => handleStartExamination(patient)}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                           >
-                            Start Examination
+                            Bắt Đầu Khám
                           </button>
                         </div>
                       </div>
@@ -553,10 +792,10 @@ export function ExaminationPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
-                    Medical Examination
+                    Khám Bệnh
                   </h2>
                   <p className="mt-2 text-gray-600">
-                    Patient: {selectedPatient?.patient_name}
+                    Bệnh nhân: {selectedPatient?.patient_name}
                   </p>
                 </div>
                 <button
@@ -585,17 +824,160 @@ export function ExaminationPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Vital Signs */}
+              <div className="bg-white shadow rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Dấu Hiệu Sinh Tồn
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={applyNormalVitalSigns}
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                  >
+                    Áp Dụng Chỉ Số Bình Thường
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nhiệt Độ (°C)
+                    </label>
+                    <input
+                      type="text"
+                      value={medicalRecord.vital_signs.temperature || ""}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            temperature: e.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="36.5"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Huyết Áp
+                    </label>
+                    <input
+                      type="text"
+                      value={medicalRecord.vital_signs.blood_pressure || ""}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            blood_pressure: e.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="120/80"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nhịp Tim (lần/phút)
+                    </label>
+                    <input
+                      type="text"
+                      value={medicalRecord.vital_signs.heart_rate || ""}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            heart_rate: e.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="72"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nhịp Thở (lần/phút)
+                    </label>
+                    <input
+                      type="text"
+                      value={medicalRecord.vital_signs.respiratory_rate || ""}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            respiratory_rate: e.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="16"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cân Nặng (kg)
+                    </label>
+                    <input
+                      type="text"
+                      value={medicalRecord.vital_signs.weight || ""}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            weight: e.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="70"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Chiều Cao (cm)
+                    </label>
+                    <input
+                      type="text"
+                      value={medicalRecord.vital_signs.height || ""}
+                      onChange={(e) =>
+                        setMedicalRecord((prev) => ({
+                          ...prev,
+                          vital_signs: {
+                            ...prev.vital_signs,
+                            height: e.target.value,
+                          },
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="170"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Basic Information */}
               <div className="bg-white shadow rounded-lg p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Examination Details
+                  Thông Tin Khám Bệnh
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Chief Complaint with Quick Selection */}
                   <div className="md:col-span-2">
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-gray-700">
-                        Chief Complaint *
+                        Triệu Chứng *
                       </label>
                       <button
                         type="button"
@@ -604,9 +986,7 @@ export function ExaminationPage() {
                         }
                         className="text-xs text-blue-600 hover:text-blue-800"
                       >
-                        {useCustomComplaint
-                          ? "Use Quick Select"
-                          : "Custom Input"}
+                        {useCustomComplaint ? "Chọn Nhanh" : "Nhập Tự Do"}
                       </button>
                     </div>
 
@@ -643,7 +1023,7 @@ export function ExaminationPage() {
                         {selectedSymptoms.length > 0 && (
                           <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
                             <p className="text-sm text-blue-800">
-                              <strong>Selected:</strong>{" "}
+                              <strong>Đã chọn:</strong>{" "}
                               {selectedSymptoms.join(", ")}
                             </p>
                           </div>
@@ -660,7 +1040,7 @@ export function ExaminationPage() {
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         rows={3}
-                        placeholder="Patient's main concern or reason for visit"
+                        placeholder="Lý do khám bệnh chính"
                         required
                       />
                     )}
@@ -668,7 +1048,7 @@ export function ExaminationPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Symptoms (Optional)
+                      Triệu Chứng Chi Tiết (Tùy Chọn)
                     </label>
                     <textarea
                       value={medicalRecord.symptoms}
@@ -680,7 +1060,7 @@ export function ExaminationPage() {
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
-                      placeholder="Additional detailed symptoms"
+                      placeholder="Mô tả chi tiết các triệu chứng"
                     />
                   </div>
 
@@ -688,7 +1068,7 @@ export function ExaminationPage() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-gray-700">
-                        Physical Examination
+                        Khám Lâm Sàng
                       </label>
                       <button
                         type="button"
@@ -697,9 +1077,7 @@ export function ExaminationPage() {
                         }
                         className="text-xs text-blue-600 hover:text-blue-800"
                       >
-                        {useCustomPhysicalExam
-                          ? "Use Quick Select"
-                          : "Custom Input"}
+                        {useCustomPhysicalExam ? "Chọn Nhanh" : "Nhập Tự Do"}
                       </button>
                     </div>
 
@@ -734,7 +1112,7 @@ export function ExaminationPage() {
                         {selectedFindings.length > 0 && (
                           <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
                             <p className="text-xs text-green-800">
-                              <strong>Findings:</strong>{" "}
+                              <strong>Kết quả khám:</strong>{" "}
                               {selectedFindings.join(", ")}
                             </p>
                           </div>
@@ -751,16 +1129,261 @@ export function ExaminationPage() {
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         rows={3}
-                        placeholder="Physical examination findings"
+                        placeholder="Kết quả khám lâm sàng"
                       />
                     )}
                   </div>
 
-                  {/* Diagnosis with Dropdown */}
-                  <div>
+                  {/* Lab Tests / Chỉ định Cận Lâm Sàng */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Chỉ Định Cận Lâm Sàng (Tùy Chọn)
+                    </label>
+                    {labTestTypes && labTestTypes.length > 0 ? (
+                      <div className="space-y-3">
+                        {/* Group by category */}
+                        {[
+                          "xet_nghiem",
+                          "chuan_doan_hinh_anh",
+                          "tham_do_chuc_nang",
+                        ].map((category) => {
+                          const categoryTests = labTestTypes.filter(
+                            (test) => test.category === category
+                          );
+                          if (categoryTests.length === 0) return null;
+
+                          const categoryName =
+                            category === "xet_nghiem"
+                              ? "Xét Nghiệm"
+                              : category === "chuan_doan_hinh_anh"
+                              ? "Chẩn Đoán Hình Ảnh"
+                              : "Thăm Dò Chức Năng";
+
+                          return (
+                            <div
+                              key={category}
+                              className="border border-gray-200 rounded-lg p-3"
+                            >
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                {categoryName}
+                              </h4>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                {categoryTests.map((test) => (
+                                  <label
+                                    key={test.id}
+                                    className="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedLabTests.includes(
+                                        test.id
+                                      )}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedLabTests([
+                                            ...selectedLabTests,
+                                            test.id,
+                                          ]);
+                                        } else {
+                                          setSelectedLabTests(
+                                            selectedLabTests.filter(
+                                              (id) => id !== test.id
+                                            )
+                                          );
+                                        }
+                                      }}
+                                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="text-gray-700">
+                                      {test.name}
+                                      <span className="text-xs text-gray-500 ml-1">
+                                        ({test.code})
+                                      </span>
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {selectedLabTests.length > 0 && (
+                          <div className="mt-2 p-3 bg-blue-50 rounded border border-blue-200">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-blue-800">
+                                  <strong>
+                                    Đã chọn {selectedLabTests.length} xét
+                                    nghiệm/chẩn đoán
+                                  </strong>
+                                </p>
+                                {!labTestsSubmitted && (
+                                  <p className="text-xs text-blue-600 mt-1">
+                                    Gửi yêu cầu ngay để phòng cận lâm sàng chuẩn
+                                    bị. Có thể hoàn thành khám sau khi nhận kết
+                                    quả.
+                                  </p>
+                                )}
+                                {labTestsSubmitted && (
+                                  <p className="text-xs text-green-600 mt-1 font-medium">
+                                    ✓ Đã gửi yêu cầu đến phòng cận lâm sàng.
+                                    Tiếp tục hoàn thành khám sau khi có kết quả.
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  submitLabTestsMutation.mutate({
+                                    labTestIds: selectedLabTests,
+                                  });
+                                }}
+                                disabled={
+                                  labTestsSubmitted ||
+                                  submitLabTestsMutation.isPending
+                                }
+                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                                  labTestsSubmitted ||
+                                  submitLabTestsMutation.isPending
+                                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                    : "bg-blue-600 text-white hover:bg-blue-700"
+                                }`}
+                              >
+                                {submitLabTestsMutation.isPending
+                                  ? "Đang gửi..."
+                                  : labTestsSubmitted
+                                  ? "Đã gửi"
+                                  : `Gửi Yêu Cầu (${selectedLabTests.length})`}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        Đang tải danh sách xét nghiệm...
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Lab Test Results */}
+                  {labTests && labTests.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                        Kết Quả Xét Nghiệm Cận Lâm Sàng
+                        {labTests.some(test => test.status === 'completed' && test.result) && (
+                          <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {labTests.filter(test => test.status === 'completed' && test.result).length} hoàn thành
+                          </span>
+                        )}
+                        {labTests.some(test => test.status === 'in_progress') && (
+                          <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
+                            {labTests.filter(test => test.status === 'in_progress').length} đang thực hiện
+                          </span>
+                        )}
+                      </h4>
+                      <div className="space-y-3">
+                        {labTests.map((test) => (
+                          <div
+                            key={test.id}
+                            className="bg-white rounded-lg p-3 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-gray-900">
+                                  {test.lab_test_type.name}
+                                </h5>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Mã XN: {test.lab_test_type.code} | Yêu cầu
+                                  lúc:{" "}
+                                  {new Date(test.ordered_at).toLocaleString(
+                                    "vi-VN"
+                                  )}
+                                </p>
+                              </div>
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  test.status === "completed"
+                                    ? "bg-green-100 text-green-800"
+                                    : test.status === "in_progress"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                                }`}
+                              >
+                                {test.status === "completed"
+                                  ? "✓ Hoàn Thành"
+                                  : test.status === "in_progress"
+                                  ? "⏳ Đang Thực Hiện"
+                                  : "⌛ Chờ Xử Lý"}
+                              </span>
+                            </div>
+
+                            {test.result && (
+                              <div className="mt-3 space-y-2">
+                                <div className="bg-gray-50 rounded p-2">
+                                  <p className="text-xs font-medium text-gray-600 mb-1">
+                                    Kết quả:
+                                  </p>
+                                  <p className="text-sm text-gray-900">
+                                    {test.result}
+                                  </p>
+                                </div>
+                                {test.interpretation && (
+                                  <div className="bg-gray-50 rounded p-2">
+                                    <p className="text-xs font-medium text-gray-600 mb-1">
+                                      Nhận xét:
+                                    </p>
+                                    <p className="text-sm text-gray-900">
+                                      {test.interpretation}
+                                    </p>
+                                  </div>
+                                )}
+                                {test.performed_by && (
+                                  <p className="text-xs text-gray-500">
+                                    Thực hiện bởi: {test.performed_by.name}
+                                    {test.completed_at &&
+                                      ` | ${new Date(
+                                        test.completed_at
+                                      ).toLocaleString("vi-VN")}`}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {!test.result && test.status === "in_progress" && (
+                              <p className="text-sm text-blue-600 italic mt-2">
+                                Kỹ thuật viên đang thực hiện xét nghiệm...
+                              </p>
+                            )}
+
+                            {!test.result && test.status === "pending" && (
+                              <p className="text-sm text-yellow-600 italic mt-2">
+                                Chờ kỹ thuật viên bắt đầu thực hiện...
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Diagnosis with ICD-10 Search */}
+                  <div className="relative icd10-search-container">
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-gray-700">
-                        Diagnosis *
+                        Chẩn Đoán (ICD-10) *
                       </label>
                       <button
                         type="button"
@@ -769,39 +1392,140 @@ export function ExaminationPage() {
                         }
                         className="text-xs text-blue-600 hover:text-blue-800"
                       >
-                        {useCustomDiagnosis
-                          ? "Use Quick Select"
-                          : "Custom Input"}
+                        {useCustomDiagnosis ? "Tra Mã ICD-10" : "Nhập Tự Do"}
                       </button>
                     </div>
 
                     {!useCustomDiagnosis ? (
-                      <select
-                        value={medicalRecord.diagnosis}
-                        onChange={(e) =>
-                          setMedicalRecord((prev) => ({
-                            ...prev,
-                            diagnosis: e.target.value,
-                          }))
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      >
-                        <option value="">Select diagnosis...</option>
-                        {diagnoses.map((category) => (
-                          <optgroup
-                            key={category.category}
-                            label={category.category}
-                          >
-                            {category.diagnoses.map((diagnosis) => (
-                              <option key={diagnosis} value={diagnosis}>
-                                {diagnosis}
-                              </option>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={icd10SearchQuery}
+                          onChange={(e) => {
+                            setIcd10SearchQuery(e.target.value);
+                            setShowIcd10Dropdown(e.target.value.length >= 2);
+                          }}
+                          onFocus={() => {
+                            if (icd10SearchQuery.length >= 2) {
+                              setShowIcd10Dropdown(true);
+                            }
+                          }}
+                          placeholder={
+                            selectedIcd10
+                              ? `${selectedIcd10.code} - ${selectedIcd10.name}`
+                              : "Nhập mã bệnh hoặc tên bệnh (VD: J00, Viêm phổi...)"
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        
+                        {/* Hidden input for validation */}
+                        <input
+                          type="hidden"
+                          value={medicalRecord.diagnosis}
+                          required
+                        />
+
+                        {/* ICD-10 Dropdown */}
+                        {showIcd10Dropdown && icd10Results.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                            <div className="px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 sticky top-0">
+                              {icd10Results.length} kết quả
+                            </div>
+                            {icd10Results.map((icd10) => (
+                              <div
+                                key={icd10.id}
+                                onClick={() => {
+                                  setSelectedIcd10(icd10);
+                                  setMedicalRecord((prev) => ({
+                                    ...prev,
+                                    diagnosis: `${icd10.code} - ${icd10.name}`,
+                                  }));
+                                  setIcd10SearchQuery("");
+                                  setShowIcd10Dropdown(false);
+                                  toast.success(`Đã chọn: ${icd10.code} - ${icd10.name}`);
+                                }}
+                                className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="inline-block px-2 py-0.5 text-xs font-mono font-semibold bg-blue-100 text-blue-800 rounded">
+                                        {icd10.code}
+                                      </span>
+                                      {icd10.is_common && (
+                                        <span className="inline-block px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
+                                          Phổ biến
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="mt-1 text-sm font-medium text-gray-900">
+                                      {icd10.name}
+                                    </p>
+                                    {icd10.name_en && (
+                                      <p className="text-xs text-gray-500 italic">
+                                        {icd10.name_en}
+                                      </p>
+                                    )}
+                                    <p className="text-xs text-gray-600 mt-1">
+                                      <span className="font-medium">Loại:</span> {icd10.category}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
                             ))}
-                          </optgroup>
-                        ))}
-                        <option value="__custom__">Other (Custom input)</option>
-                      </select>
+                          </div>
+                        )}
+
+                        {/* Selected ICD-10 Display */}
+                        {selectedIcd10 && (
+                          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-block px-2 py-1 text-sm font-mono font-semibold bg-green-600 text-white rounded">
+                                    {selectedIcd10.code}
+                                  </span>
+                                  <span className="text-sm font-medium text-gray-700">
+                                    {selectedIcd10.category}
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-sm font-medium text-gray-900">
+                                  {selectedIcd10.name}
+                                </p>
+                                {selectedIcd10.name_en && (
+                                  <p className="text-xs text-gray-600 italic mt-1">
+                                    {selectedIcd10.name_en}
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedIcd10(null);
+                                  setMedicalRecord((prev) => ({
+                                    ...prev,
+                                    diagnosis: "",
+                                  }));
+                                }}
+                                className="ml-2 text-red-600 hover:text-red-800"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* No results message */}
+                        {showIcd10Dropdown && icd10SearchQuery.length >= 2 && icd10Results.length === 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                            <p className="text-sm text-gray-500 text-center">
+                              Không tìm thấy mã bệnh phù hợp. Thử tìm bằng mã khác hoặc nhập tự do.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <textarea
                         value={medicalRecord.diagnosis}
@@ -813,7 +1537,7 @@ export function ExaminationPage() {
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         rows={3}
-                        placeholder="Enter custom diagnosis"
+                        placeholder="Nhập chẩn đoán tự do (không theo ICD-10)"
                         required
                       />
                     )}
@@ -821,7 +1545,7 @@ export function ExaminationPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Treatment Plan
+                      Phương Án Điều Trị
                     </label>
                     <textarea
                       value={medicalRecord.treatment_plan}
@@ -833,13 +1557,13 @@ export function ExaminationPage() {
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
-                      placeholder="Recommended treatment plan"
+                      placeholder="Phương án điều trị được đề xuất"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Follow-up Date
+                      Ngày Tái Khám
                     </label>
                     <input
                       type="date"
@@ -857,7 +1581,7 @@ export function ExaminationPage() {
 
                 <div className="mt-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Additional Notes
+                    Ghi Chú Thêm
                   </label>
                   <textarea
                     value={medicalRecord.notes}
@@ -869,151 +1593,8 @@ export function ExaminationPage() {
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
-                    placeholder="Additional notes or observations"
+                    placeholder="Ghi chú thêm hoặc quan sát"
                   />
-                </div>
-              </div>
-
-              {/* Vital Signs */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Vital Signs
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={applyNormalVitalSigns}
-                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                  >
-                    Apply Normal Range
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Temperature (°C)
-                    </label>
-                    <input
-                      type="text"
-                      value={medicalRecord.vital_signs.temperature || ""}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          vital_signs: {
-                            ...prev.vital_signs,
-                            temperature: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="36.5"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Blood Pressure
-                    </label>
-                    <input
-                      type="text"
-                      value={medicalRecord.vital_signs.blood_pressure || ""}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          vital_signs: {
-                            ...prev.vital_signs,
-                            blood_pressure: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="120/80"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Heart Rate (bpm)
-                    </label>
-                    <input
-                      type="text"
-                      value={medicalRecord.vital_signs.heart_rate || ""}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          vital_signs: {
-                            ...prev.vital_signs,
-                            heart_rate: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="72"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Respiratory Rate
-                    </label>
-                    <input
-                      type="text"
-                      value={medicalRecord.vital_signs.respiratory_rate || ""}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          vital_signs: {
-                            ...prev.vital_signs,
-                            respiratory_rate: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="16"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Weight (kg)
-                    </label>
-                    <input
-                      type="text"
-                      value={medicalRecord.vital_signs.weight || ""}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          vital_signs: {
-                            ...prev.vital_signs,
-                            weight: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="70"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Height (cm)
-                    </label>
-                    <input
-                      type="text"
-                      value={medicalRecord.vital_signs.height || ""}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          vital_signs: {
-                            ...prev.vital_signs,
-                            height: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="170"
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -1021,14 +1602,14 @@ export function ExaminationPage() {
               <div className="bg-white shadow rounded-lg p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900">
-                    Prescription
+                    Đơn Thuốc
                   </h3>
                   <button
                     type="button"
                     onClick={addPrescriptionItem}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
                   >
-                    Add Medicine
+                    Thêm Thuốc
                   </button>
                 </div>
 
@@ -1036,7 +1617,7 @@ export function ExaminationPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      General Instructions
+                      Hướng Dẫn Chung
                     </label>
                     <textarea
                       value={
@@ -1053,13 +1634,13 @@ export function ExaminationPage() {
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={2}
-                      placeholder="General instructions for patient"
+                      placeholder="Hướng dẫn chung cho bệnh nhân"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Precautions
+                      Lưu Ý
                     </label>
                     <textarea
                       value={medicalRecord.prescription?.precautions || ""}
@@ -1074,13 +1655,13 @@ export function ExaminationPage() {
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={2}
-                      placeholder="Important precautions"
+                      placeholder="Các lưu ý quan trọng"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Diet Advice
+                      Chế Độ Ăn
                     </label>
                     <textarea
                       value={medicalRecord.prescription?.diet_advice || ""}
@@ -1095,13 +1676,13 @@ export function ExaminationPage() {
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={2}
-                      placeholder="Dietary recommendations"
+                      placeholder="Khuyến nghị về chế độ ăn"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Lifestyle Advice
+                      Lối Sống
                     </label>
                     <textarea
                       value={medicalRecord.prescription?.lifestyle_advice || ""}
@@ -1116,7 +1697,7 @@ export function ExaminationPage() {
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={2}
-                      placeholder="Lifestyle recommendations"
+                      placeholder="Khuyến nghị về lối sống"
                     />
                   </div>
                 </div>
@@ -1129,7 +1710,7 @@ export function ExaminationPage() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-md font-medium text-gray-900">
-                        Medicine #{index + 1}
+                        Thuốc #{index + 1}
                       </h4>
                       <button
                         type="button"
@@ -1156,7 +1737,7 @@ export function ExaminationPage() {
                       {/* Medicine Name with Autocomplete */}
                       <div className="relative">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Medicine Name * (Tên thuốc)
+                          Tên thuốc *
                         </label>
                         <input
                           type="text"
@@ -1176,7 +1757,7 @@ export function ExaminationPage() {
                             }
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Search medicine..."
+                          placeholder="Tìm kiếm thuốc..."
                         />
 
                         {/* Autocomplete Dropdown */}
@@ -1220,7 +1801,7 @@ export function ExaminationPage() {
                       {/* Type */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Type (Loại thuốc)
+                          Loại thuốc
                         </label>
                         <input
                           type="text"
@@ -1233,13 +1814,13 @@ export function ExaminationPage() {
                             )
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="e.g., Tablet, Capsule, Syrup"
+                          placeholder="VD: Viên nén, Viên nang, Siro"
                         />
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Strength (Hàm lượng)
+                          Hàm lượng
                         </label>
                         <input
                           type="text"
@@ -1252,13 +1833,13 @@ export function ExaminationPage() {
                             )
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="e.g., 500mg"
+                          placeholder="VD: 500mg"
                         />
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Dosage * (Liều dùng)
+                          Liều dùng *
                         </label>
                         <input
                           type="text"
@@ -1271,13 +1852,13 @@ export function ExaminationPage() {
                             )
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="e.g., 1 tablet"
+                          placeholder="VD: 1 viên, 2 viên"
                         />
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Frequency * (Tần suất)
+                          Tần suất *
                         </label>
                         <input
                           type="text"
@@ -1290,13 +1871,13 @@ export function ExaminationPage() {
                             )
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="e.g., 3 times daily"
+                          placeholder="VD: 2 lần/ngày, 3 lần/ngày"
                         />
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Duration * (Thời gian)
+                          Thời gian *
                         </label>
                         <input
                           type="text"
@@ -1309,13 +1890,13 @@ export function ExaminationPage() {
                             )
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="e.g., 7 days"
+                          placeholder="VD: 5 ngày, 7 ngày"
                         />
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Quantity * (Số lượng)
+                          Số lượng *
                         </label>
                         <input
                           type="number"
@@ -1336,15 +1917,15 @@ export function ExaminationPage() {
                       {item.unit_price && item.unit_price > 0 && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Price Info (Thông tin giá)
+                            Thông tin giá
                           </label>
                           <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
                             <p className="text-sm text-blue-900">
-                              <span className="font-medium">Unit:</span>{" "}
+                              <span className="font-medium">Đơn giá:</span>{" "}
                               {item.unit_price.toLocaleString()}đ
                             </p>
                             <p className="text-sm text-blue-900 font-semibold">
-                              <span className="font-medium">Total:</span>{" "}
+                              <span className="font-medium">Tổng:</span>{" "}
                               {(
                                 item.unit_price * item.quantity
                               ).toLocaleString()}
@@ -1357,7 +1938,7 @@ export function ExaminationPage() {
 
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Instructions (Hướng dẫn sử dụng)
+                        Hướng dẫn sử dụng
                       </label>
                       <textarea
                         value={item.instructions || ""}
@@ -1370,14 +1951,14 @@ export function ExaminationPage() {
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         rows={2}
-                        placeholder="Special instructions for this medicine"
+                        placeholder="Ghi chú đặc biệt cho thuốc này"
                       />
                     </div>
 
                     {/* Timing options */}
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Timing (Thời điểm uống)
+                        Thời điểm uống
                       </label>
                       <div className="flex flex-wrap gap-4">
                         <label className="flex items-center">
@@ -1393,7 +1974,7 @@ export function ExaminationPage() {
                             }
                             className="mr-2"
                           />
-                          Morning (Sáng)
+                          Sáng
                         </label>
                         <label className="flex items-center">
                           <input
@@ -1408,7 +1989,7 @@ export function ExaminationPage() {
                             }
                             className="mr-2"
                           />
-                          Afternoon (Chiều)
+                          Chiều
                         </label>
                         <label className="flex items-center">
                           <input
@@ -1423,7 +2004,7 @@ export function ExaminationPage() {
                             }
                             className="mr-2"
                           />
-                          Evening (Tối)
+                          Tối
                         </label>
                         <label className="flex items-center">
                           <input
@@ -1438,7 +2019,7 @@ export function ExaminationPage() {
                             }
                             className="mr-2"
                           />
-                          Before Meal (Trước ăn)
+                          Trước ăn
                         </label>
                         <label className="flex items-center">
                           <input
@@ -1453,7 +2034,7 @@ export function ExaminationPage() {
                             }
                             className="mr-2"
                           />
-                          After Meal (Sau ăn)
+                          Sau ăn
                         </label>
                       </div>
                     </div>
@@ -1489,13 +2070,16 @@ export function ExaminationPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    // Chỉ đóng form, KHÔNG xóa draft data từ localStorage
                     setShowExaminationForm(false);
                     setSelectedPatient(null);
-                    resetForm();
+                    toast.success('📝 Dữ liệu đã được tạm lưu. Bạn có thể tiếp tục sau!', {
+                      duration: 2000,
+                    });
                   }}
                   className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
                 >
-                  Cancel
+                  Tạm Dừng
                 </button>
                 <button
                   type="submit"
@@ -1503,8 +2087,8 @@ export function ExaminationPage() {
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
                   {createMedicalRecordMutation.isPending
-                    ? "Saving..."
-                    : "Complete Examination"}
+                    ? "Đang lưu..."
+                    : "Hoàn Thành Khám"}
                 </button>
               </div>
             </form>
@@ -1523,6 +2107,6 @@ export function ExaminationPage() {
           }}
         />
       )}
-    </div>
+    </DoctorLayout>
   );
 }

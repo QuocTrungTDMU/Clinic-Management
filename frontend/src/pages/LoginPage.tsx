@@ -47,7 +47,19 @@ export function LoginPage() {
     onSuccess: (user) => {
       // Set user data in React Query cache
       queryClient.setQueryData(["user"], user);
-      navigate("/app");
+
+      // Redirect trực tiếp đến dashboard theo role
+      const roleRedirects: Record<string, string> = {
+        admin: "/admin/dashboard",
+        doctor: "/doctor/dashboard",
+        receptionist: "/receptionist/dashboard",
+        pharmacist: "/pharmacist/dashboard",
+        lab_technician: "/lab-technician/dashboard",
+        accountant: "/accountant/dashboard",
+      };
+
+      const redirectPath = roleRedirects[user.role_name] || "/app";
+      navigate(redirectPath, { replace: true });
     },
     onError: (error: any) => {
       setError(error.response?.data?.message || "Login failed");
@@ -306,11 +318,11 @@ export function LoginPage() {
               <div className="flex items-center justify-between p-3 bg-white/60 rounded-xl border border-white/50">
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                  <span className="font-semibold text-gray-800">Doctor</span>
+                  <span className="font-semibold text-gray-800">Doctor A</span>
                 </div>
                 <div className="text-right">
                   <div className="text-xs text-gray-600 font-mono">
-                    doctor@clinic.local
+                    bs.nguyenvana@clinic.vn
                   </div>
                   <div className="text-xs text-gray-500 font-mono">
                     doctor123
@@ -330,6 +342,22 @@ export function LoginPage() {
                   </div>
                   <div className="text-xs text-gray-500 font-mono">
                     pharmacist123
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-white/60 rounded-xl border border-white/50">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-pink-500 rounded-full mr-3"></div>
+                  <span className="font-semibold text-gray-800">
+                    Accountant
+                  </span>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-600 font-mono">
+                    accountant@clinic.local
+                  </div>
+                  <div className="text-xs text-gray-500 font-mono">
+                    accountant123
                   </div>
                 </div>
               </div>
