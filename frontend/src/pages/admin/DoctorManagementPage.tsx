@@ -478,17 +478,17 @@ export function DoctorManagementPage() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Doctor Management
+                  Quản Lý Bác Sĩ
                 </h1>
                 <p className="text-gray-500 mt-1">
-                  Manage doctor registrations, approvals, and access permissions
+                  Quản lý đăng ký, duyệt và quyền truy cập của bác sĩ
                 </p>
               </div>
               <button
                 onClick={handleAddDoctor}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
-                + Add New Doctor
+                + Thêm Bác Sĩ Mới
               </button>
             </div>
           </div>
@@ -498,7 +498,7 @@ export function DoctorManagementPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="text-center">
                 <p className="text-sm font-medium text-gray-500">
-                  Active Doctors
+                  Bác Sĩ Hoạt Động
                 </p>
                 <p className="text-2xl font-semibold text-green-600 mt-2">
                   {activeCount}
@@ -508,9 +508,7 @@ export function DoctorManagementPage() {
 
             <div className="bg-white rounded-lg shadow p-6">
               <div className="text-center">
-                <p className="text-sm font-medium text-gray-500">
-                  Pending Approval
-                </p>
+                <p className="text-sm font-medium text-gray-500">Chờ Duyệt</p>
                 <p className="text-2xl font-semibold text-yellow-600 mt-2">
                   {pendingCount}
                 </p>
@@ -520,7 +518,7 @@ export function DoctorManagementPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="text-center">
                 <p className="text-sm font-medium text-gray-500">
-                  Total Patients
+                  Tổng Bệnh Nhân
                 </p>
                 <p className="text-2xl font-semibold text-blue-600 mt-2">
                   {doctors.reduce(
@@ -534,9 +532,7 @@ export function DoctorManagementPage() {
 
             <div className="bg-white rounded-lg shadow p-6">
               <div className="text-center">
-                <p className="text-sm font-medium text-gray-500">
-                  Specializations
-                </p>
+                <p className="text-sm font-medium text-gray-500">Chuyên Khoa</p>
                 <p className="text-2xl font-semibold text-purple-600 mt-2">
                   {
                     new Set(
@@ -558,12 +554,12 @@ export function DoctorManagementPage() {
                   htmlFor="search"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Search
+                  Tìm Kiếm
                 </label>
                 <input
                   id="search"
                   type="text"
-                  placeholder="Search by name, email, or specialization..."
+                  placeholder="Tìm theo tên, email hoặc chuyên khoa..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -574,7 +570,7 @@ export function DoctorManagementPage() {
                   htmlFor="status-filter"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Status Filter
+                  Lọc Trạng Thái
                 </label>
                 <select
                   id="status-filter"
@@ -582,10 +578,10 @@ export function DoctorManagementPage() {
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="all">Tất Cả Trạng Thái</option>
+                  <option value="active">Hoạt Động</option>
+                  <option value="pending">Chờ Duyệt</option>
+                  <option value="inactive">Ngừng Hoạt Động</option>
                 </select>
               </div>
             </div>
@@ -595,7 +591,7 @@ export function DoctorManagementPage() {
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">
-                Doctors ({filteredDoctors.length} found)
+                Bác Sĩ ({filteredDoctors.length} kết quả)
               </h3>
             </div>
 
@@ -605,7 +601,7 @@ export function DoctorManagementPage() {
               </div>
             ) : filteredDoctors.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
-                No doctors found
+                Không tìm thấy bác sĩ
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -613,22 +609,22 @@ export function DoctorManagementPage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Doctor
+                        Bác Sĩ
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Specialization
+                        Chuyên Khoa
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Patients
+                        Bệnh Nhân
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
+                        Trạng Thái
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Registration
+                        Đăng Ký
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
+                        Thao Tác
                       </th>
                     </tr>
                   </thead>
@@ -664,7 +660,7 @@ export function DoctorManagementPage() {
                           {doctor.specialization || "N/A"}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {doctor.patient_count} patients
+                          {doctor.patient_count} bệnh nhân
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <span
@@ -678,14 +674,14 @@ export function DoctorManagementPage() {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-xs text-gray-900">
                           <div>
-                            Registered:{" "}
+                            Đăng ký:{" "}
                             {new Date(doctor.created_at).toLocaleDateString(
                               "vi-VN"
                             )}
                           </div>
                           {doctor.approved_at && (
                             <div className="text-green-600">
-                              Approved:{" "}
+                              Duyệt:{" "}
                               {new Date(doctor.approved_at).toLocaleDateString(
                                 "vi-VN"
                               )}
@@ -700,13 +696,13 @@ export function DoctorManagementPage() {
                                   onClick={() => handleApprove(doctor.id)}
                                   className="text-green-600 hover:text-green-900 text-xs bg-green-100 px-2 py-1 rounded"
                                 >
-                                  Approve
+                                  Duyệt
                                 </button>
                                 <button
                                   onClick={() => handleReject(doctor.id)}
                                   className="text-red-600 hover:text-red-900 text-xs bg-red-100 px-2 py-1 rounded"
                                 >
-                                  Reject
+                                  Từ Chối
                                 </button>
                               </>
                             )}
@@ -715,7 +711,7 @@ export function DoctorManagementPage() {
                                 onClick={() => handleDeactivate(doctor.id)}
                                 className="text-orange-600 hover:text-orange-900 text-xs bg-orange-100 px-2 py-1 rounded"
                               >
-                                Deactivate
+                                Vô Hiệu
                               </button>
                             )}
                             {doctor.status === "inactive" && (
@@ -723,27 +719,27 @@ export function DoctorManagementPage() {
                                 onClick={() => handleDeactivate(doctor.id)}
                                 className="text-green-600 hover:text-green-900 text-xs bg-green-100 px-2 py-1 rounded"
                               >
-                                Activate
+                                Kích Hoạt
                               </button>
                             )}
                             <button
                               onClick={() => handleViewDoctor(doctor)}
                               className="text-blue-600 hover:text-blue-900 text-xs bg-blue-100 px-2 py-1 rounded"
                             >
-                              View
+                              Xem
                             </button>
                             <button
                               onClick={() => handleEditDoctor(doctor)}
                               className="text-purple-600 hover:text-purple-900 text-xs bg-purple-100 px-2 py-1 rounded"
                             >
-                              Edit
+                              Sửa
                             </button>
                             {doctor.status !== "active" && (
                               <button
                                 onClick={() => handleDelete(doctor.id)}
                                 className="text-red-600 hover:text-red-900 text-xs bg-red-100 px-2 py-1 rounded"
                               >
-                                Delete
+                                Xóa
                               </button>
                             )}
                           </div>
@@ -766,7 +762,7 @@ export function DoctorManagementPage() {
               <div className="relative bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                   <h3 className="text-xl font-bold text-gray-900">
-                    Doctor Details
+                    Chi Tiết Bác Sĩ
                   </h3>
                   <button
                     onClick={() => setShowViewModal(false)}
@@ -831,7 +827,7 @@ export function DoctorManagementPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500">
-                        Phone
+                        Số Điện Thoại
                       </label>
                       <p className="mt-1 text-gray-900">
                         {selectedDoctor.phone || "N/A"}
@@ -839,7 +835,7 @@ export function DoctorManagementPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500">
-                        License Number
+                        Số Chứng Chỉ Hành Nghề
                       </label>
                       <p className="mt-1 text-gray-900">
                         {selectedDoctor.license_number || "N/A"}
@@ -847,15 +843,15 @@ export function DoctorManagementPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500">
-                        Total Patients
+                        Tổng Bệnh Nhân
                       </label>
                       <p className="mt-1 text-gray-900">
-                        {selectedDoctor.patient_count} patients
+                        {selectedDoctor.patient_count} bệnh nhân
                       </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-500">
-                        Registration Date
+                        Ngày Đăng Ký
                       </label>
                       <p className="mt-1 text-gray-900">
                         {new Date(selectedDoctor.created_at).toLocaleDateString(
@@ -866,7 +862,7 @@ export function DoctorManagementPage() {
                     {selectedDoctor.approved_at && (
                       <div>
                         <label className="block text-sm font-medium text-gray-500">
-                          Approval Date
+                          Ngày Duyệt
                         </label>
                         <p className="mt-1 text-gray-900">
                           {new Date(
@@ -888,7 +884,7 @@ export function DoctorManagementPage() {
                           }}
                           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium"
                         >
-                          Approve Doctor
+                          Duyệt Bác Sĩ
                         </button>
                         <button
                           onClick={() => {
@@ -897,7 +893,7 @@ export function DoctorManagementPage() {
                           }}
                           className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
                         >
-                          Reject
+                          Từ Chối
                         </button>
                       </>
                     )}
@@ -908,13 +904,13 @@ export function DoctorManagementPage() {
                       }}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
                     >
-                      Edit Doctor
+                      Sửa Bác Sĩ
                     </button>
                     <button
                       onClick={() => setShowViewModal(false)}
                       className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium"
                     >
-                      Close
+                      Đóng
                     </button>
                   </div>
                 </div>
@@ -932,7 +928,7 @@ export function DoctorManagementPage() {
               <div className="relative bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                   <h3 className="text-xl font-bold text-gray-900">
-                    Add New Doctor
+                    Thêm Bác Sĩ Mới
                   </h3>
                   <button
                     onClick={() => setShowAddModal(false)}
@@ -957,7 +953,7 @@ export function DoctorManagementPage() {
                 <form onSubmit={handleSubmitAdd} className="p-6 space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name *
+                      Họ Tên *
                     </label>
                     <input
                       type="text"
@@ -967,7 +963,7 @@ export function DoctorManagementPage() {
                         setFormData({ ...formData, name: e.target.value })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Dr. John Doe"
+                      placeholder="BS. Nguyễn Văn A"
                     />
                   </div>
 
@@ -983,13 +979,13 @@ export function DoctorManagementPage() {
                         setFormData({ ...formData, email: e.target.value })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="doctor@example.com"
+                      placeholder="bacsi@example.com"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Password *
+                      Mật Khẩu *
                     </label>
                     <input
                       type="password"
@@ -1006,7 +1002,7 @@ export function DoctorManagementPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number
+                      Số Điện Thoại
                     </label>
                     <input
                       type="tel"
@@ -1021,7 +1017,7 @@ export function DoctorManagementPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Specialization
+                      Chuyên Khoa
                     </label>
                     <input
                       type="text"
@@ -1033,13 +1029,13 @@ export function DoctorManagementPage() {
                         })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="e.g. Cardiology, Pediatrics"
+                      placeholder="VD: Tim mạch, Nhi khoa"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      License Number
+                      Số Chứng Chỉ Hành Nghề
                     </label>
                     <input
                       type="text"
@@ -1051,7 +1047,7 @@ export function DoctorManagementPage() {
                         })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="License number"
+                      placeholder="Số chứng chỉ hành nghề"
                     />
                   </div>
 
@@ -1061,14 +1057,16 @@ export function DoctorManagementPage() {
                       onClick={() => setShowAddModal(false)}
                       className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                     >
-                      Cancel
+                      Hủy
                     </button>
                     <button
                       type="submit"
                       disabled={addDoctorMutation.isPending}
                       className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
                     >
-                      {addDoctorMutation.isPending ? "Adding..." : "Add Doctor"}
+                      {addDoctorMutation.isPending
+                        ? "Đang thêm..."
+                        : "Thêm Bác Sĩ"}
                     </button>
                   </div>
                 </form>
@@ -1086,7 +1084,7 @@ export function DoctorManagementPage() {
               <div className="relative bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                   <h3 className="text-xl font-bold text-gray-900">
-                    Edit Doctor
+                    Sửa Bác Sĩ
                   </h3>
                   <button
                     onClick={() => setShowEditModal(false)}
@@ -1141,7 +1139,7 @@ export function DoctorManagementPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      New Password (leave blank to keep current)
+                      Mật Khẩu Mới (bỏ trống để giữ nguyên)
                     </label>
                     <input
                       type="password"
@@ -1157,7 +1155,7 @@ export function DoctorManagementPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number
+                      Số Điện Thoại
                     </label>
                     <input
                       type="tel"
@@ -1171,7 +1169,7 @@ export function DoctorManagementPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Specialization
+                      Chuyên Khoa
                     </label>
                     <input
                       type="text"
@@ -1188,7 +1186,7 @@ export function DoctorManagementPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      License Number
+                      Số Chứng Chỉ Hành Nghề
                     </label>
                     <input
                       type="text"
@@ -1209,7 +1207,7 @@ export function DoctorManagementPage() {
                       onClick={() => setShowEditModal(false)}
                       className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                     >
-                      Cancel
+                      Hủy
                     </button>
                     <button
                       type="submit"
@@ -1217,8 +1215,8 @@ export function DoctorManagementPage() {
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
                     >
                       {updateDoctorMutation.isPending
-                        ? "Updating..."
-                        : "Update Doctor"}
+                        ? "Đang cập nhật..."
+                        : "Cập Nhật Bác Sĩ"}
                     </button>
                   </div>
                 </form>

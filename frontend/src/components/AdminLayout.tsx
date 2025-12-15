@@ -21,36 +21,36 @@ interface AdminLayoutProps {
 
 const navigation = [
   {
-    name: "Dashboard",
+    name: "Trang Chủ",
     href: "/admin/dashboard",
     icon: HomeIcon,
     current: false,
   },
   {
-    name: "Doctor Management",
+    name: "Quản Lý Bác Sĩ",
     href: "/admin/doctors",
     icon: UserGroupIcon,
     current: false,
   },
   {
-    name: "Patient Management",
+    name: "Quản Lý Bệnh Nhân",
     href: "/admin/patients",
     icon: UsersIcon,
     current: false,
   },
   {
-    name: "Appointments",
+    name: "Lịch Hẹn",
     href: "/admin/appointments",
     icon: CalendarDaysIcon,
     current: false,
   },
   {
-    name: "Financial Reports",
+    name: "Báo Cáo Tài Chính",
     href: "/admin/reports",
     icon: DocumentChartBarIcon,
     current: false,
   },
-  { name: "Settings", href: "/admin/settings", icon: CogIcon, current: false },
+  { name: "Cài Đặt", href: "/admin/settings", icon: CogIcon, current: false },
 ];
 
 export function AdminLayout({ children }: AdminLayoutProps) {
@@ -100,7 +100,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <div className="flex items-center">
                 <BuildingOffice2Icon className="h-8 w-8 text-white" />
                 <span className="ml-2 text-xl font-bold text-white">
-                  Clinic Admin
+                  Quản Trị Phòng Khám
                 </span>
               </div>
               <button
@@ -156,7 +156,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 className="flex w-full items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
                 <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5" />
-                Logout
+                Đăng Xuất
               </button>
             </div>
           </div>
@@ -168,7 +168,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="flex h-16 items-center px-6 bg-blue-600">
           <BuildingOffice2Icon className="h-8 w-8 text-white" />
           <span className="ml-2 text-xl font-bold text-white">
-            Clinic Admin
+            Quản Trị Phòng Khám
           </span>
         </div>
         <nav className="flex-1 px-6 py-4">
@@ -211,7 +211,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             className="flex w-full items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5" />
-            Logout
+            Đăng Xuất
           </button>
         </div>
       </div>
@@ -230,7 +230,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex items-center">
             <BuildingOffice2Icon className="h-8 w-8 text-blue-600" />
             <span className="ml-2 text-lg font-bold text-gray-900">
-              Clinic Admin
+              Quản Trị Phòng Khám
             </span>
           </div>
           <div></div>

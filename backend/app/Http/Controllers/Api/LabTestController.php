@@ -77,6 +77,14 @@ class LabTestController extends Controller
         $query = LabTest::whereIn('status', ['pending', 'in_progress', 'completed'])
             ->with(['labTestType', 'orderedBy', 'appointment.patient', 'patient']);
 
+        // Filter by date (default to today)
+        if ($request->has('date')) {
+            $query->whereDate('ordered_at', $request->date);
+        } else {
+            // Default to today if no date provided
+            $query->whereDate('ordered_at', today());
+        }
+
         // Filter by category
         if ($request->has('category')) {
             $query->whereHas('labTestType', function ($q) use ($request) {

@@ -109,10 +109,10 @@ export function PatientManagementPage() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Patient Management
+                  Quản Lý Bệnh Nhân
                 </h1>
                 <p className="text-gray-500 mt-1">
-                  Manage patient records and information
+                  Quản lý hồ sơ và thông tin bệnh nhân
                 </p>
               </div>
             </div>
@@ -121,7 +121,7 @@ export function PatientManagementPage() {
             <div className="mt-4">
               <input
                 type="text"
-                placeholder="Search patients by name..."
+                placeholder="Tìm bệnh nhân theo tên..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -256,8 +256,8 @@ export function PatientManagementPage() {
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">
-                    Total Appointments
+                  <p className="text-sm font-medium text-gray-600">
+                    Tổng Lịch Hẹn
                   </p>
                   <p className="text-2xl font-semibold text-gray-900">
                     {patients.reduce(
@@ -364,17 +364,17 @@ export function PatientManagementPage() {
                           <div className="flex justify-end space-x-2">
                             <button
                               onClick={() => handleViewDetails(patient.id)}
-                              className="text-blue-600 hover:text-blue-900 text-xs bg-blue-100 px-2 py-1 rounded"
+                              className="text-blue-600 hover:text-blue-900 text-xs bg-blue-100 px-3 py-1 rounded"
                             >
-                              View Details
+                              Xem Chi Tiết
                             </button>
                             <button
                               onClick={() =>
                                 handleViewMedicalHistory(patient.id)
                               }
-                              className="text-green-600 hover:text-green-900 text-xs bg-green-100 px-2 py-1 rounded"
+                              className="text-green-600 hover:text-green-900 text-xs bg-green-100 px-3 py-1 rounded"
                             >
-                              Medical History
+                              Bệnh Án
                             </button>
                           </div>
                         </td>

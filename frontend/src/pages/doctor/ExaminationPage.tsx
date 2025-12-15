@@ -126,6 +126,7 @@ export function ExaminationPage() {
   const [showExaminationForm, setShowExaminationForm] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyPatientId, setHistoryPatientId] = useState<number | null>(null);
+  const [showLabResultsModal, setShowLabResultsModal] = useState(false);
 
   // Quick selection states
   const [useCustomComplaint, setUseCustomComplaint] = useState(false);
@@ -175,14 +176,14 @@ export function ExaminationPage() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.icd10-search-container')) {
+      if (!target.closest(".icd10-search-container")) {
         setShowIcd10Dropdown(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -214,7 +215,7 @@ export function ExaminationPage() {
       const response = await api.get("/doctor/queue");
       return response.data;
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 3000, // Refetch every 3 seconds for real-time updates
   });
 
   // Fetch lab test types
@@ -254,39 +255,42 @@ export function ExaminationPage() {
       return response.data as LabTest[];
     },
     enabled: !!selectedPatient?.appointment_id,
-    refetchInterval: 5000, // Auto refetch every 5 seconds để xem kết quả mới (giảm từ 10s xuống 5s)
+    refetchInterval: 3000, // Auto refetch every 3 seconds for real-time lab results
   });
 
   // Track lab test results and show notification when new results arrive
-  const [previousLabTestResults, setPreviousLabTestResults] = useState<Set<number>>(new Set());
-  
+  const [previousLabTestResults, setPreviousLabTestResults] = useState<
+    Set<number>
+  >(new Set());
+
   useEffect(() => {
     if (labTests && labTests.length > 0) {
       const currentCompletedIds = new Set(
         labTests
-          .filter(test => test.status === 'completed' && test.result)
-          .map(test => test.id)
+          .filter((test) => test.status === "completed" && test.result)
+          .map((test) => test.id)
       );
-      
+
       // Check for new completed tests
       const newCompletedTests = labTests.filter(
-        test => test.status === 'completed' && 
-                test.result && 
-                !previousLabTestResults.has(test.id)
+        (test) =>
+          test.status === "completed" &&
+          test.result &&
+          !previousLabTestResults.has(test.id)
       );
-      
+
       if (newCompletedTests.length > 0 && previousLabTestResults.size > 0) {
-        newCompletedTests.forEach(test => {
+        newCompletedTests.forEach((test) => {
           toast.success(
             `✅ Kết quả xét nghiệm mới: ${test.lab_test_type.name}`,
             {
               duration: 5000,
-              icon: '🧪',
+              icon: "🧪",
             }
           );
         });
       }
-      
+
       setPreviousLabTestResults(currentCompletedIds);
     }
   }, [labTests, previousLabTestResults]);
@@ -319,15 +323,24 @@ export function ExaminationPage() {
         timestamp: new Date().toISOString(),
       };
       localStorage.setItem(key, JSON.stringify(dataToSave));
-      console.log('📝 Auto-saved examination form to localStorage');
+      console.log("📝 Auto-saved examination form to localStorage");
     }
-  }, [medicalRecord, selectedSymptoms, selectedFindings, selectedLabTests, useCustomComplaint, useCustomDiagnosis, useCustomPhysicalExam, selectedPatient]);
+  }, [
+    medicalRecord,
+    selectedSymptoms,
+    selectedFindings,
+    selectedLabTests,
+    useCustomComplaint,
+    useCustomDiagnosis,
+    useCustomPhysicalExam,
+    selectedPatient,
+  ]);
 
   // Clear localStorage when form is closed without completion
   const clearDraftData = (appointmentId: number) => {
     const key = getLocalStorageKey(appointmentId);
     localStorage.removeItem(key);
-    console.log('🗑️ Cleared draft data from localStorage');
+    console.log("🗑️ Cleared draft data from localStorage");
   };
 
   // Create medical record mutation
@@ -361,7 +374,7 @@ export function ExaminationPage() {
     mutationFn: async ({ labTestIds }: { labTestIds: number[] }) => {
       // GỬI LAB TEST REQUEST mà KHÔNG TẠO medical record
       // Medical record chỉ được tạo khi bác sĩ click "Hoàn Thành Khám"
-      
+
       const promises = labTestIds.map((labTestTypeId) =>
         api.post("/lab-tests", {
           appointment_id: selectedPatient?.appointment_id || 0,
@@ -507,18 +520,19 @@ export function ExaminationPage() {
   };
   const handleStartExamination = (patient: Patient) => {
     setSelectedPatient(patient);
-    
+
     // Try to restore draft data from localStorage
     const key = getLocalStorageKey(patient.appointment_id);
     const savedData = localStorage.getItem(key);
-    
+
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
         const savedTime = new Date(parsed.timestamp);
         const now = new Date();
-        const hoursDiff = (now.getTime() - savedTime.getTime()) / (1000 * 60 * 60);
-        
+        const hoursDiff =
+          (now.getTime() - savedTime.getTime()) / (1000 * 60 * 60);
+
         // Only restore if saved within last 24 hours
         if (hoursDiff < 24) {
           setMedicalRecord(parsed.medicalRecord);
@@ -528,25 +542,25 @@ export function ExaminationPage() {
           setUseCustomComplaint(parsed.useCustomComplaint || false);
           setUseCustomDiagnosis(parsed.useCustomDiagnosis || false);
           setUseCustomPhysicalExam(parsed.useCustomPhysicalExam || false);
-          
-          toast.success('✅ Đã khôi phục dữ liệu form từ lần trước', {
+
+          toast.success("✅ Đã khôi phục dữ liệu form từ lần trước", {
             duration: 3000,
-            icon: '📋',
+            icon: "📋",
           });
-          console.log('✅ Restored draft data from localStorage');
+          console.log("✅ Restored draft data from localStorage");
         } else {
           // Clear old data
           clearDraftData(patient.appointment_id);
           initializeNewForm(patient);
         }
       } catch (error) {
-        console.error('Error parsing saved data:', error);
+        console.error("Error parsing saved data:", error);
         initializeNewForm(patient);
       }
     } else {
       initializeNewForm(patient);
     }
-    
+
     setShowExaminationForm(true);
   };
 
@@ -608,6 +622,19 @@ export function ExaminationPage() {
         ],
       },
     }));
+
+    // Scroll to the new item after state updates
+    setTimeout(() => {
+      const prescriptionSection = document.querySelector(
+        "[data-prescription-items]"
+      );
+      if (prescriptionSection) {
+        const lastItem = prescriptionSection.lastElementChild;
+        if (lastItem) {
+          lastItem.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    }, 100);
   };
 
   const removePrescriptionItem = (index: number) => {
@@ -1046,94 +1073,6 @@ export function ExaminationPage() {
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Triệu Chứng Chi Tiết (Tùy Chọn)
-                    </label>
-                    <textarea
-                      value={medicalRecord.symptoms}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          symptoms: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="Mô tả chi tiết các triệu chứng"
-                    />
-                  </div>
-
-                  {/* Physical Examination with Quick Selection */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Khám Lâm Sàng
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setUseCustomPhysicalExam(!useCustomPhysicalExam)
-                        }
-                        className="text-xs text-blue-600 hover:text-blue-800"
-                      >
-                        {useCustomPhysicalExam ? "Chọn Nhanh" : "Nhập Tự Do"}
-                      </button>
-                    </div>
-
-                    {!useCustomPhysicalExam ? (
-                      <div className="space-y-2">
-                        {physicalExamFindings.map((system) => (
-                          <div
-                            key={system.system}
-                            className="border border-gray-200 rounded p-2"
-                          >
-                            <h5 className="text-xs font-medium text-gray-600 mb-1">
-                              {system.system}
-                            </h5>
-                            <div className="flex flex-wrap gap-2">
-                              {system.findings.map((finding) => (
-                                <label
-                                  key={finding}
-                                  className="flex items-center space-x-1 text-xs cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedFindings.includes(finding)}
-                                    onChange={() => toggleFinding(finding)}
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                  />
-                                  <span>{finding}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                        {selectedFindings.length > 0 && (
-                          <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
-                            <p className="text-xs text-green-800">
-                              <strong>Kết quả khám:</strong>{" "}
-                              {selectedFindings.join(", ")}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <textarea
-                        value={medicalRecord.physical_examination}
-                        onChange={(e) =>
-                          setMedicalRecord((prev) => ({
-                            ...prev,
-                            physical_examination: e.target.value,
-                          }))
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows={3}
-                        placeholder="Kết quả khám lâm sàng"
-                      />
-                    )}
-                  </div>
-
                   {/* Lab Tests / Chỉ định Cận Lâm Sàng */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1265,10 +1204,14 @@ export function ExaminationPage() {
                     )}
                   </div>
 
-                  {/* Lab Test Results */}
+                  {/* Lab Test Results Button */}
                   {labTests && labTests.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowLabResultsModal(true)}
+                      className="w-full bg-blue-50 border border-blue-200 rounded-lg p-4 hover:bg-blue-100 transition-colors text-left"
+                    >
+                      <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
                         <svg
                           className="w-5 h-5"
                           fill="none"
@@ -1283,100 +1226,36 @@ export function ExaminationPage() {
                           />
                         </svg>
                         Kết Quả Xét Nghiệm Cận Lâm Sàng
-                        {labTests.some(test => test.status === 'completed' && test.result) && (
+                        {labTests.some(
+                          (test) => test.status === "completed" && test.result
+                        ) && (
                           <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            {labTests.filter(test => test.status === 'completed' && test.result).length} hoàn thành
+                            {
+                              labTests.filter(
+                                (test) =>
+                                  test.status === "completed" && test.result
+                              ).length
+                            }{" "}
+                            hoàn thành
                           </span>
                         )}
-                        {labTests.some(test => test.status === 'in_progress') && (
+                        {labTests.some(
+                          (test) => test.status === "in_progress"
+                        ) && (
                           <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 animate-pulse">
-                            {labTests.filter(test => test.status === 'in_progress').length} đang thực hiện
+                            {
+                              labTests.filter(
+                                (test) => test.status === "in_progress"
+                              ).length
+                            }{" "}
+                            đang thực hiện
                           </span>
                         )}
                       </h4>
-                      <div className="space-y-3">
-                        {labTests.map((test) => (
-                          <div
-                            key={test.id}
-                            className="bg-white rounded-lg p-3 shadow-sm"
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <h5 className="font-medium text-gray-900">
-                                  {test.lab_test_type.name}
-                                </h5>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Mã XN: {test.lab_test_type.code} | Yêu cầu
-                                  lúc:{" "}
-                                  {new Date(test.ordered_at).toLocaleString(
-                                    "vi-VN"
-                                  )}
-                                </p>
-                              </div>
-                              <span
-                                className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                  test.status === "completed"
-                                    ? "bg-green-100 text-green-800"
-                                    : test.status === "in_progress"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-yellow-100 text-yellow-800"
-                                }`}
-                              >
-                                {test.status === "completed"
-                                  ? "✓ Hoàn Thành"
-                                  : test.status === "in_progress"
-                                  ? "⏳ Đang Thực Hiện"
-                                  : "⌛ Chờ Xử Lý"}
-                              </span>
-                            </div>
-
-                            {test.result && (
-                              <div className="mt-3 space-y-2">
-                                <div className="bg-gray-50 rounded p-2">
-                                  <p className="text-xs font-medium text-gray-600 mb-1">
-                                    Kết quả:
-                                  </p>
-                                  <p className="text-sm text-gray-900">
-                                    {test.result}
-                                  </p>
-                                </div>
-                                {test.interpretation && (
-                                  <div className="bg-gray-50 rounded p-2">
-                                    <p className="text-xs font-medium text-gray-600 mb-1">
-                                      Nhận xét:
-                                    </p>
-                                    <p className="text-sm text-gray-900">
-                                      {test.interpretation}
-                                    </p>
-                                  </div>
-                                )}
-                                {test.performed_by && (
-                                  <p className="text-xs text-gray-500">
-                                    Thực hiện bởi: {test.performed_by.name}
-                                    {test.completed_at &&
-                                      ` | ${new Date(
-                                        test.completed_at
-                                      ).toLocaleString("vi-VN")}`}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-
-                            {!test.result && test.status === "in_progress" && (
-                              <p className="text-sm text-blue-600 italic mt-2">
-                                Kỹ thuật viên đang thực hiện xét nghiệm...
-                              </p>
-                            )}
-
-                            {!test.result && test.status === "pending" && (
-                              <p className="text-sm text-yellow-600 italic mt-2">
-                                Chờ kỹ thuật viên bắt đầu thực hiện...
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                      <p className="text-sm text-gray-600">
+                        Click để xem chi tiết {labTests.length} xét nghiệm
+                      </p>
+                    </button>
                   )}
 
                   {/* Diagnosis with ICD-10 Search */}
@@ -1417,7 +1296,7 @@ export function ExaminationPage() {
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        
+
                         {/* Hidden input for validation */}
                         <input
                           type="hidden"
@@ -1442,7 +1321,9 @@ export function ExaminationPage() {
                                   }));
                                   setIcd10SearchQuery("");
                                   setShowIcd10Dropdown(false);
-                                  toast.success(`Đã chọn: ${icd10.code} - ${icd10.name}`);
+                                  toast.success(
+                                    `Đã chọn: ${icd10.code} - ${icd10.name}`
+                                  );
                                 }}
                                 className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0"
                               >
@@ -1467,7 +1348,8 @@ export function ExaminationPage() {
                                       </p>
                                     )}
                                     <p className="text-xs text-gray-600 mt-1">
-                                      <span className="font-medium">Loại:</span> {icd10.category}
+                                      <span className="font-medium">Loại:</span>{" "}
+                                      {icd10.category}
                                     </p>
                                   </div>
                                 </div>
@@ -1509,8 +1391,18 @@ export function ExaminationPage() {
                                 }}
                                 className="ml-2 text-red-600 hover:text-red-800"
                               >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
                                 </svg>
                               </button>
                             </div>
@@ -1518,13 +1410,16 @@ export function ExaminationPage() {
                         )}
 
                         {/* No results message */}
-                        {showIcd10Dropdown && icd10SearchQuery.length >= 2 && icd10Results.length === 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
-                            <p className="text-sm text-gray-500 text-center">
-                              Không tìm thấy mã bệnh phù hợp. Thử tìm bằng mã khác hoặc nhập tự do.
-                            </p>
-                          </div>
-                        )}
+                        {showIcd10Dropdown &&
+                          icd10SearchQuery.length >= 2 &&
+                          icd10Results.length === 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
+                              <p className="text-sm text-gray-500 text-center">
+                                Không tìm thấy mã bệnh phù hợp. Thử tìm bằng mã
+                                khác hoặc nhập tự do.
+                              </p>
+                            </div>
+                          )}
                       </div>
                     ) : (
                       <textarea
@@ -1604,442 +1499,372 @@ export function ExaminationPage() {
                   <h3 className="text-lg font-medium text-gray-900">
                     Đơn Thuốc
                   </h3>
-                  <button
-                    type="button"
-                    onClick={addPrescriptionItem}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                  >
-                    Thêm Thuốc
-                  </button>
-                </div>
-
-                {/* Prescription General Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Hướng Dẫn Chung
-                    </label>
-                    <textarea
-                      value={
-                        medicalRecord.prescription?.general_instructions || ""
-                      }
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          prescription: {
-                            ...prev.prescription!,
-                            general_instructions: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={2}
-                      placeholder="Hướng dẫn chung cho bệnh nhân"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Lưu Ý
-                    </label>
-                    <textarea
-                      value={medicalRecord.prescription?.precautions || ""}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          prescription: {
-                            ...prev.prescription!,
-                            precautions: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={2}
-                      placeholder="Các lưu ý quan trọng"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Chế Độ Ăn
-                    </label>
-                    <textarea
-                      value={medicalRecord.prescription?.diet_advice || ""}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          prescription: {
-                            ...prev.prescription!,
-                            diet_advice: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={2}
-                      placeholder="Khuyến nghị về chế độ ăn"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Lối Sống
-                    </label>
-                    <textarea
-                      value={medicalRecord.prescription?.lifestyle_advice || ""}
-                      onChange={(e) =>
-                        setMedicalRecord((prev) => ({
-                          ...prev,
-                          prescription: {
-                            ...prev.prescription!,
-                            lifestyle_advice: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={2}
-                      placeholder="Khuyến nghị về lối sống"
-                    />
-                  </div>
                 </div>
 
                 {/* Medicine Items */}
-                {medicalRecord.prescription?.items.map((item, index) => (
-                  <div
-                    key={index}
-                    className="border border-gray-200 rounded-lg p-4 mb-4"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-md font-medium text-gray-900">
-                        Thuốc #{index + 1}
-                      </h4>
-                      <button
-                        type="button"
-                        onClick={() => removePrescriptionItem(index)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                <div data-prescription-items>
+                  {medicalRecord.prescription?.items.map((item, index) => (
+                    <div
+                      key={index}
+                      className="border border-gray-200 rounded-lg p-4 mb-4"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-md font-medium text-gray-900">
+                          Thuốc #{index + 1}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => removePrescriptionItem(index)}
+                          className="text-red-600 hover:text-red-800"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Medicine Name with Autocomplete */}
+                        <div className="relative">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Tên thuốc *
+                          </label>
+                          <input
+                            type="text"
+                            value={item.medicine_name}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              updatePrescriptionItem(
+                                index,
+                                "medicine_name",
+                                value
+                              );
+                              searchMedicines(value, index);
+                            }}
+                            onFocus={() => {
+                              if (item.medicine_name.length >= 2) {
+                                searchMedicines(item.medicine_name, index);
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Tìm kiếm thuốc..."
                           />
-                        </svg>
-                      </button>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Medicine Name with Autocomplete */}
-                      <div className="relative">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Tên thuốc *
-                        </label>
-                        <input
-                          type="text"
-                          value={item.medicine_name}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            updatePrescriptionItem(
-                              index,
-                              "medicine_name",
-                              value
-                            );
-                            searchMedicines(value, index);
-                          }}
-                          onFocus={() => {
-                            if (item.medicine_name.length >= 2) {
-                              searchMedicines(item.medicine_name, index);
-                            }
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Tìm kiếm thuốc..."
-                        />
-
-                        {/* Autocomplete Dropdown */}
-                        {showMedicineDropdown === index &&
-                          medicineSearchResults.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                              {medicineSearchResults.map((medicine) => (
-                                <div
-                                  key={medicine.id}
-                                  onClick={() =>
-                                    selectMedicine(medicine, index)
-                                  }
-                                  className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100"
-                                >
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <p className="font-medium text-gray-900">
-                                        {medicine.name}
-                                      </p>
-                                      <p className="text-xs text-gray-600">
-                                        {medicine.strength} -{" "}
-                                        {medicine.medicine_type}
-                                      </p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-sm font-medium text-blue-600">
-                                        {medicine.selling_price.toLocaleString()}
-                                        đ
-                                      </p>
-                                      <p className="text-xs text-gray-500">
-                                        Stock: {medicine.stock_quantity}
-                                      </p>
+                          {/* Autocomplete Dropdown */}
+                          {showMedicineDropdown === index &&
+                            medicineSearchResults.length > 0 && (
+                              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                {medicineSearchResults.map((medicine) => (
+                                  <div
+                                    key={medicine.id}
+                                    onClick={() =>
+                                      selectMedicine(medicine, index)
+                                    }
+                                    className="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100"
+                                  >
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <p className="font-medium text-gray-900">
+                                          {medicine.name}
+                                        </p>
+                                        <p className="text-xs text-gray-600">
+                                          {medicine.strength} -{" "}
+                                          {medicine.medicine_type}
+                                        </p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-sm font-medium text-blue-600">
+                                          {medicine.selling_price.toLocaleString()}
+                                          đ
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                          Stock: {medicine.stock_quantity}
+                                        </p>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                      </div>
+                                ))}
+                              </div>
+                            )}
+                        </div>
 
-                      {/* Type */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Loại thuốc
-                        </label>
-                        <input
-                          type="text"
-                          value={item.medicine_type || ""}
-                          onChange={(e) =>
-                            updatePrescriptionItem(
-                              index,
-                              "medicine_type",
-                              e.target.value
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="VD: Viên nén, Viên nang, Siro"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Hàm lượng
-                        </label>
-                        <input
-                          type="text"
-                          value={item.strength || ""}
-                          onChange={(e) =>
-                            updatePrescriptionItem(
-                              index,
-                              "strength",
-                              e.target.value
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="VD: 500mg"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Liều dùng *
-                        </label>
-                        <input
-                          type="text"
-                          value={item.dosage}
-                          onChange={(e) =>
-                            updatePrescriptionItem(
-                              index,
-                              "dosage",
-                              e.target.value
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="VD: 1 viên, 2 viên"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Tần suất *
-                        </label>
-                        <input
-                          type="text"
-                          value={item.frequency}
-                          onChange={(e) =>
-                            updatePrescriptionItem(
-                              index,
-                              "frequency",
-                              e.target.value
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="VD: 2 lần/ngày, 3 lần/ngày"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Thời gian *
-                        </label>
-                        <input
-                          type="text"
-                          value={item.duration}
-                          onChange={(e) =>
-                            updatePrescriptionItem(
-                              index,
-                              "duration",
-                              e.target.value
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="VD: 5 ngày, 7 ngày"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Số lượng *
-                        </label>
-                        <input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updatePrescriptionItem(
-                              index,
-                              "quantity",
-                              parseInt(e.target.value) || 1
-                            )
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          min="1"
-                        />
-                      </div>
-
-                      {/* Show price if medicine selected from database */}
-                      {item.unit_price && item.unit_price > 0 && (
+                        {/* Type */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Thông tin giá
+                            Loại thuốc
                           </label>
-                          <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p className="text-sm text-blue-900">
-                              <span className="font-medium">Đơn giá:</span>{" "}
-                              {item.unit_price.toLocaleString()}đ
-                            </p>
-                            <p className="text-sm text-blue-900 font-semibold">
-                              <span className="font-medium">Tổng:</span>{" "}
-                              {(
-                                item.unit_price * item.quantity
-                              ).toLocaleString()}
-                              đ
-                            </p>
-                          </div>
+                          <input
+                            type="text"
+                            value={item.medicine_type || ""}
+                            onChange={(e) =>
+                              updatePrescriptionItem(
+                                index,
+                                "medicine_type",
+                                e.target.value
+                              )
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="VD: Viên nén, Viên nang, Siro"
+                          />
                         </div>
-                      )}
-                    </div>
 
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Hướng dẫn sử dụng
-                      </label>
-                      <textarea
-                        value={item.instructions || ""}
-                        onChange={(e) =>
-                          updatePrescriptionItem(
-                            index,
-                            "instructions",
-                            e.target.value
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows={2}
-                        placeholder="Ghi chú đặc biệt cho thuốc này"
-                      />
-                    </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Hàm lượng
+                          </label>
+                          <input
+                            type="text"
+                            value={item.strength || ""}
+                            onChange={(e) =>
+                              updatePrescriptionItem(
+                                index,
+                                "strength",
+                                e.target.value
+                              )
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="VD: 500mg"
+                          />
+                        </div>
 
-                    {/* Timing options */}
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Thời điểm uống
-                      </label>
-                      <div className="flex flex-wrap gap-4">
-                        <label className="flex items-center">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Liều dùng *
+                          </label>
                           <input
-                            type="checkbox"
-                            checked={item.morning}
+                            type="text"
+                            value={item.dosage}
                             onChange={(e) =>
                               updatePrescriptionItem(
                                 index,
-                                "morning",
-                                e.target.checked
+                                "dosage",
+                                e.target.value
                               )
                             }
-                            className="mr-2"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="VD: 1 viên, 2 viên"
                           />
-                          Sáng
-                        </label>
-                        <label className="flex items-center">
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Tần suất *
+                          </label>
                           <input
-                            type="checkbox"
-                            checked={item.afternoon}
+                            type="text"
+                            value={item.frequency}
                             onChange={(e) =>
                               updatePrescriptionItem(
                                 index,
-                                "afternoon",
-                                e.target.checked
+                                "frequency",
+                                e.target.value
                               )
                             }
-                            className="mr-2"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="VD: 2 lần/ngày, 3 lần/ngày"
                           />
-                          Chiều
-                        </label>
-                        <label className="flex items-center">
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Thời gian *
+                          </label>
                           <input
-                            type="checkbox"
-                            checked={item.evening}
+                            type="text"
+                            value={item.duration}
                             onChange={(e) =>
                               updatePrescriptionItem(
                                 index,
-                                "evening",
-                                e.target.checked
+                                "duration",
+                                e.target.value
                               )
                             }
-                            className="mr-2"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="VD: 5 ngày, 7 ngày"
                           />
-                          Tối
-                        </label>
-                        <label className="flex items-center">
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Số lượng *
+                          </label>
                           <input
-                            type="checkbox"
-                            checked={item.before_meal}
+                            type="number"
+                            value={item.quantity}
                             onChange={(e) =>
                               updatePrescriptionItem(
                                 index,
-                                "before_meal",
-                                e.target.checked
+                                "quantity",
+                                parseInt(e.target.value) || 1
                               )
                             }
-                            className="mr-2"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            min="1"
                           />
-                          Trước ăn
+                        </div>
+
+                        {/* Show price if medicine selected from database */}
+                        {item.unit_price && item.unit_price > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Thông tin giá
+                            </label>
+                            <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                              <p className="text-sm text-blue-900">
+                                <span className="font-medium">Đơn giá:</span>{" "}
+                                {item.unit_price.toLocaleString()}đ
+                              </p>
+                              <p className="text-sm text-blue-900 font-semibold">
+                                <span className="font-medium">Tổng:</span>{" "}
+                                {(
+                                  item.unit_price * item.quantity
+                                ).toLocaleString()}
+                                đ
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Hướng dẫn sử dụng
                         </label>
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={item.after_meal}
-                            onChange={(e) =>
-                              updatePrescriptionItem(
-                                index,
-                                "after_meal",
-                                e.target.checked
-                              )
-                            }
-                            className="mr-2"
-                          />
-                          Sau ăn
+                        <textarea
+                          value={item.instructions || ""}
+                          onChange={(e) =>
+                            updatePrescriptionItem(
+                              index,
+                              "instructions",
+                              e.target.value
+                            )
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          rows={2}
+                          placeholder="Ghi chú đặc biệt cho thuốc này"
+                        />
+                      </div>
+
+                      {/* Timing options */}
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Thời điểm uống
                         </label>
+                        <div className="flex flex-wrap gap-4">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={item.morning}
+                              onChange={(e) =>
+                                updatePrescriptionItem(
+                                  index,
+                                  "morning",
+                                  e.target.checked
+                                )
+                              }
+                              className="mr-2"
+                            />
+                            Sáng
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={item.afternoon}
+                              onChange={(e) =>
+                                updatePrescriptionItem(
+                                  index,
+                                  "afternoon",
+                                  e.target.checked
+                                )
+                              }
+                              className="mr-2"
+                            />
+                            Chiều
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={item.evening}
+                              onChange={(e) =>
+                                updatePrescriptionItem(
+                                  index,
+                                  "evening",
+                                  e.target.checked
+                                )
+                              }
+                              className="mr-2"
+                            />
+                            Tối
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={item.before_meal}
+                              onChange={(e) =>
+                                updatePrescriptionItem(
+                                  index,
+                                  "before_meal",
+                                  e.target.checked
+                                )
+                              }
+                              className="mr-2"
+                            />
+                            Trước ăn
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={item.after_meal}
+                              onChange={(e) =>
+                                updatePrescriptionItem(
+                                  index,
+                                  "after_meal",
+                                  e.target.checked
+                                )
+                              }
+                              className="mr-2"
+                            />
+                            Sau ăn
+                          </label>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+
+                {/* Add Medicine Button */}
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={addPrescriptionItem}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Thêm Thuốc
+                  </button>
+                </div>
 
                 {medicalRecord.prescription?.items.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
@@ -2073,9 +1898,12 @@ export function ExaminationPage() {
                     // Chỉ đóng form, KHÔNG xóa draft data từ localStorage
                     setShowExaminationForm(false);
                     setSelectedPatient(null);
-                    toast.success('📝 Dữ liệu đã được tạm lưu. Bạn có thể tiếp tục sau!', {
-                      duration: 2000,
-                    });
+                    toast.success(
+                      "📝 Dữ liệu đã được tạm lưu. Bạn có thể tiếp tục sau!",
+                      {
+                        duration: 2000,
+                      }
+                    );
                   }}
                   className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
                 >
@@ -2106,6 +1934,148 @@ export function ExaminationPage() {
             setHistoryPatientId(null);
           }}
         />
+      )}
+
+      {/* Lab Results Modal */}
+      {showLabResultsModal && labTests && labTests.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowLabResultsModal(false)}
+          />
+          <div className="relative bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-white px-6 py-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
+                  Kết Quả Xét Nghiệm Cận Lâm Sàng
+                </h3>
+                <button
+                  onClick={() => setShowLabResultsModal(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {labTests.map((test) => (
+                  <div
+                    key={test.id}
+                    className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h5 className="font-semibold text-lg text-gray-900">
+                          {test.lab_test_type.name}
+                        </h5>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Mã XN: {test.lab_test_type.code} | Yêu cầu lúc:{" "}
+                          {new Date(test.ordered_at).toLocaleString("vi-VN")}
+                        </p>
+                      </div>
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          test.status === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : test.status === "in_progress"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {test.status === "completed"
+                          ? "✓ Hoàn Thành"
+                          : test.status === "in_progress"
+                          ? "⏳ Đang Thực Hiện"
+                          : "⌛ Chờ Xử Lý"}
+                      </span>
+                    </div>
+
+                    {test.result && (
+                      <div className="mt-3 space-y-3">
+                        <div className="bg-white rounded-lg p-3 border border-gray-200">
+                          <p className="text-sm font-medium text-gray-600 mb-2">
+                            Kết quả:
+                          </p>
+                          <p className="text-base text-gray-900 whitespace-pre-wrap">
+                            {test.result}
+                          </p>
+                        </div>
+                        {test.interpretation && (
+                          <div className="bg-white rounded-lg p-3 border border-gray-200">
+                            <p className="text-sm font-medium text-gray-600 mb-2">
+                              Nhận xét:
+                            </p>
+                            <p className="text-base text-gray-900 whitespace-pre-wrap">
+                              {test.interpretation}
+                            </p>
+                          </div>
+                        )}
+                        {test.performed_by && (
+                          <p className="text-sm text-gray-500">
+                            Thực hiện bởi:{" "}
+                            <span className="font-medium">
+                              {test.performed_by.name}
+                            </span>
+                            {test.completed_at &&
+                              ` | ${new Date(test.completed_at).toLocaleString(
+                                "vi-VN"
+                              )}`}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {!test.result && test.status === "in_progress" && (
+                      <p className="text-sm text-blue-600 italic mt-2">
+                        Kỹ thuật viên đang thực hiện xét nghiệm...
+                      </p>
+                    )}
+
+                    {!test.result && test.status === "pending" && (
+                      <p className="text-sm text-yellow-600 italic mt-2">
+                        Chờ kỹ thuật viên bắt đầu thực hiện...
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowLabResultsModal(false)}
+                  className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </DoctorLayout>
   );

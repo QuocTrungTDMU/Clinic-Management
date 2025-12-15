@@ -103,12 +103,10 @@ export function AdminDashboardPage() {
         <div className="space-y-6">
           {/* Page Header */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Admin Dashboard
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-900">Trang Quản Trị</h1>
             <p className="text-gray-500 mt-1">
-              Welcome back, {user.name}! Here's what's happening in your clinic
-              today.
+              Chào mừng trở lại, {user.name}! Đây là tổng quan về phòng khám hôm
+              nay.
             </p>
           </div>
 
@@ -141,7 +139,7 @@ export function AdminDashboardPage() {
                   </div>
                   <div className="ml-4 flex-1">
                     <p className="text-sm font-medium text-gray-600">
-                      Total Patients
+                      Tổng Bệnh Nhân
                     </p>
                     <div className="flex items-baseline">
                       <p className="text-2xl font-bold text-gray-900">
@@ -149,7 +147,7 @@ export function AdminDashboardPage() {
                       </p>
                       {stats.recent_patients > 0 && (
                         <p className="ml-2 text-sm font-medium text-green-600">
-                          +{stats.recent_patients} this week
+                          +{stats.recent_patients} tuần này
                         </p>
                       )}
                     </div>
@@ -179,7 +177,7 @@ export function AdminDashboardPage() {
                   </div>
                   <div className="ml-4 flex-1">
                     <p className="text-sm font-medium text-gray-600">
-                      Active Doctors
+                      Bác Sĩ Hoạt Động
                     </p>
                     <div className="flex items-baseline">
                       <p className="text-2xl font-bold text-gray-900">
@@ -187,7 +185,7 @@ export function AdminDashboardPage() {
                       </p>
                       {stats.pending_doctors > 0 && (
                         <p className="ml-2 text-sm font-medium text-orange-600">
-                          {stats.pending_doctors} pending
+                          {stats.pending_doctors} chờ duyệt
                         </p>
                       )}
                     </div>
@@ -217,7 +215,7 @@ export function AdminDashboardPage() {
                   </div>
                   <div className="ml-4 flex-1">
                     <p className="text-sm font-medium text-gray-600">
-                      Today's Revenue
+                      Doanh Thu Hôm Nay
                     </p>
                     <div className="flex items-baseline">
                       <p className="text-xl font-bold text-gray-900">
@@ -250,14 +248,14 @@ export function AdminDashboardPage() {
                   </div>
                   <div className="ml-4 flex-1">
                     <p className="text-sm font-medium text-gray-600">
-                      Today's Appointments
+                      Lịch Hẹn Hôm Nay
                     </p>
                     <div className="flex items-baseline">
                       <p className="text-2xl font-bold text-gray-900">
                         {stats.today_appointments}
                       </p>
                       <p className="ml-2 text-sm font-medium text-gray-600">
-                        {stats.completed_appointments} completed
+                        {stats.completed_appointments} hoàn thành
                       </p>
                     </div>
                   </div>
@@ -289,15 +287,15 @@ export function AdminDashboardPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors min-h-[28px]">
-                Doctor Management
+                Quản Lý Bác Sĩ
               </h3>
               <p className="text-sm text-gray-600 mb-3 min-h-[40px]">
-                Manage doctor accounts and approvals
+                Quản lý tài khoản và duyệt bác sĩ
               </p>
               <div className="min-h-[24px]">
                 {stats.pending_doctors > 0 && (
                   <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
-                    {stats.pending_doctors} pending
+                    {stats.pending_doctors} chờ duyệt
                   </span>
                 )}
               </div>
@@ -324,14 +322,14 @@ export function AdminDashboardPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors min-h-[28px]">
-                Patient Management
+                Quản Lý Bệnh Nhân
               </h3>
               <p className="text-sm text-gray-600 mb-3 min-h-[40px]">
-                View and manage all patient records
+                Xem và quản lý tất cả hồ sơ bệnh nhân
               </p>
               <div className="min-h-[24px]">
                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                  {stats.total_patients} patients
+                  {stats.total_patients} bệnh nhân
                 </span>
               </div>
             </button>
@@ -357,14 +355,14 @@ export function AdminDashboardPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors min-h-[28px]">
-                Appointments
+                Lịch Hẹn
               </h3>
               <p className="text-sm text-gray-600 mb-3 min-h-[40px]">
-                View and manage all appointments
+                Xem và quản lý tất cả lịch hẹn
               </p>
               <div className="min-h-[24px]">
                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-                  {stats.today_appointments} today
+                  {stats.today_appointments} hôm nay
                 </span>
               </div>
             </button>
@@ -390,10 +388,10 @@ export function AdminDashboardPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-yellow-600 transition-colors min-h-[28px]">
-                Financial Reports
+                Báo Cáo Tài Chính
               </h3>
               <p className="text-sm text-gray-600 mb-3 min-h-[40px]">
-                View revenue and transaction analytics
+                Xem doanh thu và phân tích giao dịch
               </p>
               <div className="min-h-[24px]">
                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
@@ -408,39 +406,39 @@ export function AdminDashboardPage() {
             {/* System Status */}
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
-                System Status
+                Trạng Thái Hệ Thống
               </h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-600">
-                    Database Connection
+                    Kết Nối Cơ Sở Dữ Liệu
                   </span>
                   <div className="flex items-center">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                     <span className="text-sm font-medium text-green-600">
-                      Connected
+                      Đã Kết Nối
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-600">
-                    API Server
+                    Máy Chủ API
                   </span>
                   <div className="flex items-center">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                     <span className="text-sm font-medium text-green-600">
-                      Online
+                      Trực Tuyến
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-600">
-                    Authentication
+                    Xác Thực
                   </span>
                   <div className="flex items-center">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                     <span className="text-sm font-medium text-green-600">
-                      Active
+                      Hoạt Động
                     </span>
                   </div>
                 </div>
@@ -450,12 +448,12 @@ export function AdminDashboardPage() {
             {/* Quick Stats */}
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Quick Overview
+                Tổng Quan Nhanh
               </h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-600">
-                    Total Doctors
+                    Tổng Bác Sĩ
                   </span>
                   <span className="text-sm font-bold text-gray-900">
                     {stats.active_doctors}
@@ -463,7 +461,7 @@ export function AdminDashboardPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-600">
-                    Total Patients
+                    Tổng Bệnh Nhân
                   </span>
                   <span className="text-sm font-bold text-gray-900">
                     {stats.total_patients}
@@ -471,7 +469,7 @@ export function AdminDashboardPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-600">
-                    Today's Appointments
+                    Lịch Hẹn Hôm Nay
                   </span>
                   <span className="text-sm font-bold text-gray-900">
                     {stats.today_appointments}
@@ -479,7 +477,7 @@ export function AdminDashboardPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-600">
-                    Pending Approvals
+                    Chờ Duyệt
                   </span>
                   <span className="text-sm font-bold text-orange-600">
                     {stats.pending_doctors}

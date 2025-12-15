@@ -31,17 +31,17 @@ class VNPayController extends Controller
         $vnp_Url = env('VNPAY_URL', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html');
 
         $vnp_TxnRef = 'INV' . $invoice->id . '_' . time(); // Mã đơn hàng
-        $vnp_OrderInfo = 'Thanh toan hoa don kham benh #' . $invoice->id;
+        $vnp_OrderInfo = 'Thanh toan hoa don ' . $invoice->id;
         $vnp_OrderType = 'billpayment';
-        $vnp_Amount = $invoice->total_amount * 100; // VNPay yêu cầu số tiền x 100
+        $vnp_Amount = intval($invoice->total_amount * 100); // VNPay yêu cầu số nguyên
         $vnp_Locale = 'vn';
         $vnp_BankCode = $request->bank_code ?? '';
-        $vnp_IpAddr = $request->ip();
+        $vnp_IpAddr = $request->ip() ?: '127.0.0.1';
 
         $inputData = array(
             "vnp_Version" => "2.1.0",
             "vnp_TmnCode" => $vnp_TmnCode,
-            "vnp_Amount" => $vnp_Amount,
+            "vnp_Amount" => strval($vnp_Amount), // Must be string
             "vnp_Command" => "pay",
             "vnp_CreateDate" => date('YmdHis'),
             "vnp_CurrCode" => "VND",
@@ -56,6 +56,27 @@ class VNPayController extends Controller
         if (!empty($vnp_BankCode)) {
             $inputData['vnp_BankCode'] = $vnp_BankCode;
         }
+
+        // Remove empty values and trim strings
+        $inputData = array_filter($inputData, function ($value) {
+            return $value !== '' && $value !== null;
+        });
+
+        // Trim all string values
+        foreach ($inputData as $key => $value) {
+            if (is_string($value)) {
+                $inputData[$key] = trim($value);
+            }
+        }
+
+        // Log request for debugging
+        Log::info('VNPay payment request', [
+            'invoice_id' => $invoice->id,
+            'amount' => $vnp_Amount,
+            'txn_ref' => $vnp_TxnRef,
+            'return_url' => $request->return_url,
+            'input_data' => $inputData
+        ]);
 
         ksort($inputData);
         $query = "";
@@ -98,9 +119,24 @@ class VNPayController extends Controller
 
         $inputData = $request->all();
         $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
+
+        // Remove hash and hash type from input data
         unset($inputData['vnp_SecureHash']);
+        unset($inputData['vnp_SecureHashType']);
+
+        // Remove non-VNPay parameters (custom params from return URL)
+        $vnpParams = [];
+        foreach ($inputData as $key => $value) {
+            if (substr($key, 0, 4) === "vnp_") {
+                $vnpParams[$key] = $value;
+            }
+        }
+        $inputData = $vnpParams;
+
+        // Sort parameters
         ksort($inputData);
 
+        // Build hash data string
         $hashData = "";
         $i = 0;
         foreach ($inputData as $key => $value) {
@@ -113,6 +149,15 @@ class VNPayController extends Controller
         }
 
         $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+
+        // Log for debugging
+        Log::info('VNPay Return', [
+            'input_data' => $inputData,
+            'hash_data' => $hashData,
+            'calculated_hash' => $secureHash,
+            'received_hash' => $vnp_SecureHash,
+            'match' => ($secureHash === $vnp_SecureHash)
+        ]);
 
         if ($secureHash === $vnp_SecureHash) {
             $vnp_ResponseCode = $request->vnp_ResponseCode;
@@ -137,7 +182,7 @@ class VNPayController extends Controller
 
                         $invoice->markAsPaid(
                             $invoice->created_by ?? 1,
-                            'bank_transfer',
+                            'transfer',
                             $vnp_Amount
                         );
 
@@ -147,7 +192,7 @@ class VNPayController extends Controller
                                 'prescription_id' => $invoice->prescription_id,
                                 'patient_id' => $invoice->patient_id,
                                 'total_amount' => $invoice->medication_cost,
-                                'payment_method' => 'bank_transfer',
+                                'payment_method' => 'transfer',
                                 'status' => 'paid_pending_dispensing',
                                 'transaction_date' => now(),
                             ]);

@@ -5,38 +5,52 @@ import { apiClient } from "../../lib/axios";
 
 interface Transaction {
   id: number;
-  prescription_id: number;
-  patient_name: string;
-  patient_phone: string;
+  patient_id: number;
+  doctor_id: number;
+  consultation_fee: number;
+  medication_cost: number;
+  lab_test_cost: number;
   total_amount: number;
   payment_method: string;
-  paid_amount: number;
-  change_amount: number;
-  dispensed_by: string;
-  dispensed_at: string;
-  items: {
-    medicine_name: string;
-    quantity: number;
-    unit_price: number;
-    subtotal: number;
-  }[];
+  paid_at: string;
+  status: string;
+  patient: {
+    id: number;
+    name: string;
+    phone: string;
+  };
+  doctor: {
+    id: number;
+    name: string;
+  };
+  processedBy: {
+    id: number;
+    name: string;
+  } | null;
 }
 
 interface RevenueData {
   total_revenue: number;
+  consultation_revenue: number;
+  medication_revenue: number;
+  lab_test_revenue: number;
   transactions_count: number;
   average_transaction: number;
   transactions: Transaction[];
-  by_date: {
-    date: string;
-    revenue: number;
-    count: number;
-  }[];
-  by_payment_method: {
-    method: string;
-    revenue: number;
-    count: number;
-  }[];
+  by_date: Record<
+    string,
+    {
+      revenue: number;
+      count: number;
+    }
+  >;
+  by_payment_method: Record<
+    string,
+    {
+      revenue: number;
+      count: number;
+    }
+  >;
 }
 
 export function FinancialReportsPage() {
@@ -65,7 +79,7 @@ export function FinancialReportsPage() {
   const { data: revenueData, isLoading } = useQuery({
     queryKey: ["admin-revenue", fromDate, toDate, paymentMethodFilter],
     queryFn: async () => {
-      const response = await apiClient.get("/pharmacy/transactions", {
+      const response = await apiClient.get("/billing/admin-revenue", {
         params: {
           from_date: fromDate,
           to_date: toDate,
@@ -74,68 +88,20 @@ export function FinancialReportsPage() {
         },
       });
 
-      // Process data to calculate totals
-      const transactions: Transaction[] = response.data.data || [];
-      const total = transactions.reduce(
-        (sum, t) => sum + Number(t.total_amount),
-        0
-      );
-      const count = transactions.length;
-      const average = count > 0 ? total / count : 0;
-
-      // Group by date
-      const byDate: Record<string, { revenue: number; count: number }> = {};
-      transactions.forEach((t) => {
-        const date = t.dispensed_at.split("T")[0];
-        if (!byDate[date]) {
-          byDate[date] = { revenue: 0, count: 0 };
-        }
-        byDate[date].revenue += Number(t.total_amount);
-        byDate[date].count += 1;
-      });
-
-      // Group by payment method
-      const byPaymentMethod: Record<
-        string,
-        { revenue: number; count: number }
-      > = {};
-      transactions.forEach((t) => {
-        const method = t.payment_method;
-        if (!byPaymentMethod[method]) {
-          byPaymentMethod[method] = { revenue: 0, count: 0 };
-        }
-        byPaymentMethod[method].revenue += Number(t.total_amount);
-        byPaymentMethod[method].count += 1;
-      });
-
-      return {
-        total_revenue: total,
-        transactions_count: count,
-        average_transaction: average,
-        transactions,
-        by_date: Object.entries(byDate).map(([date, data]) => ({
-          date,
-          revenue: data.revenue,
-          count: data.count,
-        })),
-        by_payment_method: Object.entries(byPaymentMethod).map(
-          ([method, data]) => ({
-            method,
-            revenue: data.revenue,
-            count: data.count,
-          })
-        ),
-      };
+      return response.data;
     },
   });
 
   const revenue: RevenueData = revenueData || {
     total_revenue: 0,
+    consultation_revenue: 0,
+    medication_revenue: 0,
+    lab_test_revenue: 0,
     transactions_count: 0,
     average_transaction: 0,
     transactions: [],
-    by_date: [],
-    by_payment_method: [],
+    by_date: {},
+    by_payment_method: {},
   };
 
   const transactions: Transaction[] = revenueData?.transactions || [];
@@ -310,7 +276,7 @@ export function FinancialReportsPage() {
           </div>
 
           {/* Revenue by Payment Method */}
-          {revenue.by_payment_method.length > 0 && (
+          {Object.keys(revenue.by_payment_method).length > 0 && (
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-medium text-gray-900">
@@ -319,37 +285,40 @@ export function FinancialReportsPage() {
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  {revenue.by_payment_method.map((pm) => (
-                    <div key={pm.method} className="bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-500 capitalize">
-                          {pm.method}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {pm.count} trans
-                        </span>
+                  {Object.entries(revenue.by_payment_method).map(
+                    ([method, data]) => (
+                      <div key={method} className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-500 capitalize">
+                            {method}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {data.count} trans
+                          </span>
+                        </div>
+                        <p className="text-xl font-bold text-gray-900">
+                          {formatCurrency(data.revenue)}
+                        </p>
+                        <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{
+                              width: `${
+                                (data.revenue / revenue.total_revenue) * 100
+                              }%`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {(
+                            (data.revenue / revenue.total_revenue) *
+                            100
+                          ).toFixed(1)}
+                          % of total
+                        </p>
                       </div>
-                      <p className="text-xl font-bold text-gray-900">
-                        {formatCurrency(pm.revenue)}
-                      </p>
-                      <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{
-                            width: `${
-                              (pm.revenue / revenue.total_revenue) * 100
-                            }%`,
-                          }}
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {((pm.revenue / revenue.total_revenue) * 100).toFixed(
-                          1
-                        )}
-                        % of total
-                      </p>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </div>
             </div>
@@ -403,47 +372,49 @@ export function FinancialReportsPage() {
                     {transactions
                       .sort(
                         (a, b) =>
-                          new Date(b.dispensed_at).getTime() -
-                          new Date(a.dispensed_at).getTime()
+                          new Date(b.paid_at).getTime() -
+                          new Date(a.paid_at).getTime()
                       )
                       .map((transaction) => (
                         <tr key={transaction.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {new Date(
-                                transaction.dispensed_at
-                              ).toLocaleDateString("vi-VN")}
+                              {new Date(transaction.paid_at).toLocaleDateString(
+                                "vi-VN"
+                              )}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {new Date(
-                                transaction.dispensed_at
-                              ).toLocaleTimeString("vi-VN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {new Date(transaction.paid_at).toLocaleTimeString(
+                                "vi-VN",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-gray-900">
-                              {transaction.patient_name}
+                              {transaction.patient.name}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {transaction.patient_phone}
+                              {transaction.patient.phone}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {transaction.items.length} item(s)
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {transaction.items
-                                .slice(0, 2)
-                                .map((item, idx) => (
-                                  <div key={idx}>{item.medicine_name}</div>
-                                ))}
-                              {transaction.items.length > 2 && (
-                                <div className="text-blue-600">
-                                  +{transaction.items.length - 2} more
+                              <div>
+                                Consultation:{" "}
+                                {formatCurrency(transaction.consultation_fee)}
+                              </div>
+                              <div>
+                                Medication:{" "}
+                                {formatCurrency(transaction.medication_cost)}
+                              </div>
+                              {transaction.lab_test_cost > 0 && (
+                                <div>
+                                  Lab Tests:{" "}
+                                  {formatCurrency(transaction.lab_test_cost)}
                                 </div>
                               )}
                             </div>
@@ -460,7 +431,7 @@ export function FinancialReportsPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {transaction.dispensed_by}
+                              {transaction.processedBy?.name || "N/A"}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -491,7 +462,7 @@ export function FinancialReportsPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               </div>
-            ) : revenue.by_date.length === 0 ? (
+            ) : Object.keys(revenue.by_date).length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 No transactions found for selected date range
               </div>
@@ -515,16 +486,15 @@ export function FinancialReportsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {revenue.by_date
+                    {Object.entries(revenue.by_date)
                       .sort(
-                        (a, b) =>
-                          new Date(b.date).getTime() -
-                          new Date(a.date).getTime()
+                        ([dateA], [dateB]) =>
+                          new Date(dateB).getTime() - new Date(dateA).getTime()
                       )
-                      .map((day) => (
-                        <tr key={day.date} className="hover:bg-gray-50">
+                      .map(([date, data]) => (
+                        <tr key={date} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {new Date(day.date).toLocaleDateString("vi-VN", {
+                            {new Date(date).toLocaleDateString("vi-VN", {
                               weekday: "short",
                               year: "numeric",
                               month: "short",
@@ -532,13 +502,13 @@ export function FinancialReportsPage() {
                             })}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {day.count} transactions
+                            {data.count} transactions
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                            {formatCurrency(day.revenue)}
+                            {formatCurrency(data.revenue)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatCurrency(day.revenue / day.count)}
+                            {formatCurrency(data.revenue / data.count)}
                           </td>
                         </tr>
                       ))}
@@ -580,7 +550,7 @@ export function FinancialReportsPage() {
             <div className="bg-white px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold text-gray-900">
-                  Transaction Receipt #{selectedTransaction.id}
+                  Invoice Details #{selectedTransaction.id}
                 </h3>
                 <button
                   onClick={() => setShowDetailsModal(false)}
@@ -594,22 +564,15 @@ export function FinancialReportsPage() {
             {/* Transaction Info */}
             <div className="px-6 py-4 mb-6">
               <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-                <span className="text-blue-600">📋</span> Transaction
-                Information
+                <span className="text-blue-600">📋</span> Payment Information
               </h4>
               <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
                 <div>
-                  <p className="text-sm text-gray-500">Transaction Date</p>
+                  <p className="text-sm text-gray-500">Payment Date</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {new Date(selectedTransaction.dispensed_at).toLocaleString(
+                    {new Date(selectedTransaction.paid_at).toLocaleString(
                       "vi-VN"
                     )}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Prescription ID</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    #{selectedTransaction.prescription_id}
                   </p>
                 </div>
                 <div>
@@ -619,16 +582,22 @@ export function FinancialReportsPage() {
                   </span>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Dispensed By</p>
+                  <p className="text-sm text-gray-500">Processed By</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {selectedTransaction.dispensed_by}
+                    {selectedTransaction.processedBy?.name || "N/A"}
                   </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 capitalize">
+                    {selectedTransaction.status}
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Patient Info */}
-            <div className="mb-6">
+            <div className="px-6 mb-6">
               <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-green-600">👤</span> Patient Information
               </h4>
@@ -636,113 +605,68 @@ export function FinancialReportsPage() {
                 <div>
                   <p className="text-sm text-gray-500">Name</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {selectedTransaction.patient_name}
+                    {selectedTransaction.patient.name}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Phone</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {selectedTransaction.patient_phone}
+                    {selectedTransaction.patient.phone}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Doctor</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {selectedTransaction.doctor.name}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Medicine Items */}
-            <div className="mb-6">
+            {/* Cost Breakdown */}
+            <div className="px-6 mb-6">
               <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-                <span className="text-purple-600">💊</span> Medicine Items
+                <span className="text-purple-600">💰</span> Cost Breakdown
               </h4>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-gray-300">
-                      <th className="text-left text-xs font-medium text-gray-500 uppercase pb-2">
-                        Medicine
-                      </th>
-                      <th className="text-center text-xs font-medium text-gray-500 uppercase pb-2">
-                        Qty
-                      </th>
-                      <th className="text-right text-xs font-medium text-gray-500 uppercase pb-2">
-                        Unit Price
-                      </th>
-                      <th className="text-right text-xs font-medium text-gray-500 uppercase pb-2">
-                        Subtotal
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedTransaction.items.map((item, index) => (
-                      <tr key={index} className="border-b border-gray-200">
-                        <td className="py-3 text-sm text-gray-900">
-                          {item.medicine_name}
-                        </td>
-                        <td className="py-3 text-sm text-gray-900 text-center">
-                          {item.quantity}
-                        </td>
-                        <td className="py-3 text-sm text-gray-900 text-right">
-                          {formatCurrency(item.unit_price)}
-                        </td>
-                        <td className="py-3 text-sm font-medium text-gray-900 text-right">
-                          {formatCurrency(item.subtotal)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-gray-300">
-                      <td
-                        colSpan={3}
-                        className="py-3 text-sm font-bold text-gray-900 text-right"
-                      >
-                        TOTAL:
-                      </td>
-                      <td className="py-3 text-lg font-bold text-green-600 text-right">
-                        {formatCurrency(selectedTransaction.total_amount)}
-                      </td>
-                    </tr>
-                    {selectedTransaction.paid_amount >
-                      selectedTransaction.total_amount && (
-                      <>
-                        <tr>
-                          <td
-                            colSpan={3}
-                            className="py-2 text-sm text-gray-600 text-right"
-                          >
-                            Paid Amount:
-                          </td>
-                          <td className="py-2 text-sm text-gray-900 text-right">
-                            {formatCurrency(selectedTransaction.paid_amount)}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td
-                            colSpan={3}
-                            className="py-2 text-sm text-gray-600 text-right"
-                          >
-                            Change:
-                          </td>
-                          <td className="py-2 text-sm text-gray-900 text-right">
-                            {formatCurrency(selectedTransaction.change_amount)}
-                          </td>
-                        </tr>
-                      </>
-                    )}
-                  </tfoot>
-                </table>
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">
+                    Consultation Fee
+                  </span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatCurrency(selectedTransaction.consultation_fee)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Medication Cost</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatCurrency(selectedTransaction.medication_cost)}
+                  </span>
+                </div>
+                {selectedTransaction.lab_test_cost > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Lab Test Cost</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {formatCurrency(selectedTransaction.lab_test_cost)}
+                    </span>
+                  </div>
+                )}
+                <div className="border-t pt-3 mt-3 flex justify-between items-center">
+                  <span className="text-base font-semibold text-gray-900">
+                    Total Amount
+                  </span>
+                  <span className="text-lg font-bold text-green-600">
+                    {formatCurrency(selectedTransaction.total_amount)}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="bg-gray-50 px-6 py-4 flex justify-between">
-              <button
-                onClick={() => window.print()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                🖨️ Print Receipt
-              </button>
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t">
               <button
                 onClick={() => setShowDetailsModal(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Close
               </button>

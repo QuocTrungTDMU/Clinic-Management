@@ -371,7 +371,7 @@ class AppointmentController extends Controller
                 // Count how many doctors are busy at this time
                 $busyDoctors = $appointments->filter(function ($appointment) use ($dateTime) {
                     $appointmentStart = $appointment->appointment_datetime->format('Y-m-d H:i:s');
-                    $appointmentEnd = $appointment->appointment_datetime->addMinutes($appointment->duration_minutes)->format('Y-m-d H:i:s');
+                    $appointmentEnd = $appointment->appointment_datetime->copy()->addMinutes($appointment->duration_minutes)->format('Y-m-d H:i:s');
 
                     return $dateTime >= $appointmentStart && $dateTime < $appointmentEnd;
                 })->count();
@@ -401,7 +401,7 @@ class AppointmentController extends Controller
                 // Check if this slot conflicts with existing appointments
                 $isAvailable = !$appointments->contains(function ($appointment) use ($dateTime) {
                     $appointmentStart = $appointment->appointment_datetime->format('Y-m-d H:i:s');
-                    $appointmentEnd = $appointment->appointment_datetime->addMinutes($appointment->duration_minutes)->format('Y-m-d H:i:s');
+                    $appointmentEnd = $appointment->appointment_datetime->copy()->addMinutes($appointment->duration_minutes)->format('Y-m-d H:i:s');
 
                     return $dateTime >= $appointmentStart && $dateTime < $appointmentEnd;
                 });

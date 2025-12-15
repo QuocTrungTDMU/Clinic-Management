@@ -24,22 +24,6 @@ export function LoginPage() {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    // defaultValues: {
-    //   email: "admin@clinic.local",
-    //   password: "admin123",
-    // },
-    // defaultValues: {
-    //   email: "receptionist@clinic.com",
-    //   password: "password123",
-    // },
-    // defaultValues: {
-    // Email: pharmacist@clinic.local
-    // Password: pharmacist123
-    // },
-    defaultValues: {
-      email: "doctor@clinic.local",
-      password: "doctor123",
-    },
   });
 
   const loginMutation = useMutation({
@@ -269,7 +253,7 @@ export function LoginPage() {
           </form>
 
           {/* Demo Accounts */}
-          <div className="mt-8 p-5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 rounded-2xl border border-blue-100/50">
+          {/* <div className="mt-8 p-5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 rounded-2xl border border-blue-100/50">
             <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center">
               <svg
                 className="h-4 w-4 mr-2 text-blue-600"
@@ -361,8 +345,24 @@ export function LoginPage() {
                   </div>
                 </div>
               </div>
+              <div className="flex items-center justify-between p-3 bg-white/60 rounded-xl border border-white/50">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-cyan-500 rounded-full mr-3"></div>
+                  <span className="font-semibold text-gray-800">
+                    Lab Technician
+                  </span>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-600 font-mono">
+                    lab@clinic.com
+                  </div>
+                  <div className="text-xs text-gray-500 font-mono">
+                    password
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Footer */}

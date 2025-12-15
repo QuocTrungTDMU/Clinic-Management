@@ -194,4 +194,96 @@ class BillingController extends Controller
 
         return response()->json($stats);
     }
+
+    /**
+     * Get all revenue data for admin (from paid invoices)
+     */
+    public function getAdminRevenue(Request $request)
+    {
+        $query = BillingInvoice::with([
+            'patient:id,name,phone',
+            'doctor:id,name',
+            'processedBy:id,name'
+        ])->where('status', 'paid');
+
+        // Filter by date range
+        if ($request->has('from_date')) {
+            $query->whereDate('paid_at', '>=', $request->from_date);
+        }
+        if ($request->has('to_date')) {
+            $query->whereDate('paid_at', '<=', $request->to_date);
+        }
+
+        // Filter by payment method
+        if ($request->has('payment_method')) {
+            $query->where('payment_method', $request->payment_method);
+        }
+
+        $invoices = $query->orderBy('paid_at', 'desc')->get();
+
+        // Calculate totals
+        $totalRevenue = $invoices->sum('total_amount');
+        $consultationRevenue = $invoices->sum('consultation_fee');
+        $medicationRevenue = $invoices->sum('medication_cost');
+        $labTestRevenue = $invoices->sum('lab_test_cost');
+
+        // Group by date
+        $byDate = $invoices->groupBy(function ($invoice) {
+            return \Carbon\Carbon::parse($invoice->paid_at)->format('Y-m-d');
+        })->map(function ($group) {
+            return [
+                'revenue' => $group->sum('total_amount'),
+                'count' => $group->count(),
+            ];
+        });
+
+        // Group by payment method
+        $byPaymentMethod = $invoices->groupBy('payment_method')->map(function ($group) {
+            return [
+                'revenue' => $group->sum('total_amount'),
+                'count' => $group->count(),
+            ];
+        });
+
+        return response()->json([
+            'total_revenue' => $totalRevenue,
+            'consultation_revenue' => $consultationRevenue,
+            'medication_revenue' => $medicationRevenue,
+            'lab_test_revenue' => $labTestRevenue,
+            'transactions_count' => $invoices->count(),
+            'average_transaction' => $invoices->count() > 0 ? $totalRevenue / $invoices->count() : 0,
+            'transactions' => $invoices,
+            'by_date' => $byDate,
+            'by_payment_method' => $byPaymentMethod,
+        ]);
+    }
+
+    /**
+     * Get receipt data for printing
+     */
+    public function getReceipt($id)
+    {
+        $invoice = BillingInvoice::with([
+            'patient:id,name,phone,dob,gender,address',
+            'doctor:id,name',
+            'appointment:id,appointment_datetime,reason',
+            'medicalRecord:id,diagnosis',
+            'prescription.prescriptionItems.medicine:id,name,price,unit',
+            'processedBy:id,name'
+        ])->findOrFail($id);
+
+        // Get clinic info (you can store this in config or database)
+        $clinic_info = [
+            'name' => config('app.clinic_name', 'QTMedic Clinic'),
+            'address' => config('app.clinic_address', 'TP. Thủ Dầu Một, Bình Dương'),
+            'phone' => config('app.clinic_phone', '0123456789'),
+            'email' => config('app.clinic_email', 'contact@qtmedic.vn'),
+        ];
+
+        return response()->json([
+            'invoice' => $invoice,
+            'clinic_info' => $clinic_info,
+            'print_date' => now()->format('d/m/Y H:i:s'),
+        ]);
+    }
 }

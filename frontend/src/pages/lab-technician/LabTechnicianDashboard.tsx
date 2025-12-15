@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import api from "../../lib/axios";
+import { authService } from "../../lib/auth";
 import { toast } from "react-hot-toast";
 import {
   Activity,
@@ -11,6 +13,7 @@ import {
   Calendar,
   Microscope,
   Stethoscope,
+  LogOut,
 } from "lucide-react";
 
 interface LabTest {
@@ -68,6 +71,7 @@ interface LabTestResultForm {
 }
 
 export default function LabTechnicianDashboard() {
+  const navigate = useNavigate();
   const [selectedTest, setSelectedTest] = useState<LabTest | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultForm, setResultForm] = useState<LabTestResultForm>({
@@ -77,8 +81,34 @@ export default function LabTechnicianDashboard() {
   const [filterStatus, setFilterStatus] = useState<
     "pending" | "in_progress" | "completed"
   >("pending");
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  });
+  const [searchTerm, setSearchTerm] = useState("");
 
   const queryClient = useQueryClient();
+
+  // Fetch user info
+  const { data: user } = useQuery({
+    queryKey: ["user"],
+    queryFn: authService.me,
+  });
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      queryClient.clear();
+      toast.success("Đăng xuất thành công");
+      navigate("/login");
+    } catch (error) {
+      toast.error("Có lỗi xảy ra khi đăng xuất");
+    }
+  };
 
   // Helper function to get patient info (từ patient hoặc medical_record.patient)
   const getPatientInfo = (test: LabTest) => {
@@ -110,10 +140,14 @@ export default function LabTechnicianDashboard() {
 
   // Fetch pending/in-progress lab tests
   const { data: labTests, isLoading } = useQuery({
-    queryKey: ["lab-tests", filterStatus],
+    queryKey: ["lab-tests", filterStatus, selectedDate],
     queryFn: async () => {
       try {
-        const response = await api.get("/lab-tests/pending");
+        const response = await api.get("/lab-tests/pending", {
+          params: {
+            date: selectedDate,
+          },
+        });
 
         // Check if response.data is already the array or wrapped in {success, data}
         const labTestsData = Array.isArray(response.data)
@@ -130,6 +164,19 @@ export default function LabTechnicianDashboard() {
     refetchOnWindowFocus: true,
     refetchInterval: 10000, // Auto refetch every 10 seconds
   });
+
+  // Filter tests by search term
+  const filteredTests =
+    labTests?.filter((test) => {
+      if (!searchTerm) return true;
+      const patientInfo = getPatientInfo(test);
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        patientInfo.name.toLowerCase().includes(searchLower) ||
+        test.lab_test_type.name.toLowerCase().includes(searchLower) ||
+        test.lab_test_type.code.toLowerCase().includes(searchLower)
+      );
+    }) || [];
 
   // Update test status to in_progress
   const startTestMutation = useMutation({
@@ -280,8 +327,8 @@ export default function LabTechnicianDashboard() {
     );
   };
 
-  const filteredTests = labTests?.filter((test) => {
-
+  // Apply status filter on top of search filter
+  const statusFilteredTests = filteredTests.filter((test) => {
     return test.status === filterStatus;
   });
 
@@ -294,19 +341,44 @@ export default function LabTechnicianDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Microscope className="w-8 h-8 text-blue-600" />
-            Phòng Cận Lâm Sàng
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Quản lý yêu cầu xét nghiệm và chẩn đoán
-          </p>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-gray-200 mb-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-4">
+              <Microscope className="w-8 h-8 text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Phòng Cận Lâm Sàng
+                </h1>
+                <p className="text-sm text-gray-600">
+                  Quản lý yêu cầu xét nghiệm và chẩn đoán
+                </p>
+              </div>
+            </div>
 
+            {/* User Menu */}
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">
+                  {user?.name}
+                </p>
+                <p className="text-xs text-gray-500">{user?.role_name}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 transition-colors"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Đăng xuất
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-6">
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-white rounded-lg shadow p-6">
@@ -346,12 +418,40 @@ export default function LabTechnicianDashboard() {
           </div>
         </div>
 
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ngày
+              </label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tìm kiếm
+              </label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Tên bệnh nhân hoặc số điện thoại..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Filter Tabs */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b border-gray-200">
             <nav className="flex -mb-px">
               {[
-
                 { value: "pending", label: "Chờ Xử Lý", count: stats.pending },
                 {
                   value: "in_progress",
@@ -389,9 +489,9 @@ export default function LabTechnicianDashboard() {
               <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4 animate-spin" />
               <p className="text-gray-600">Đang tải dữ liệu...</p>
             </div>
-          ) : filteredTests && filteredTests.length > 0 ? (
+          ) : statusFilteredTests && statusFilteredTests.length > 0 ? (
             <div className="divide-y divide-gray-200">
-              {filteredTests.map((test) => (
+              {statusFilteredTests.map((test) => (
                 <div
                   key={test.id}
                   className="p-6 hover:bg-gray-50 transition-colors"
@@ -536,7 +636,6 @@ export default function LabTechnicianDashboard() {
                   "Chưa có xét nghiệm đang thực hiện"}
                 {filterStatus === "completed" &&
                   "Chưa có xét nghiệm hoàn thành"}
-
               </p>
             </div>
           )}
@@ -545,8 +644,15 @@ export default function LabTechnicianDashboard() {
 
       {/* Result Modal */}
       {showResultModal && selectedTest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => {
+              setShowResultModal(false);
+              setSelectedTest(null);
+            }}
+          />
+          <div className="relative bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">
                 {selectedTest.status === "completed"

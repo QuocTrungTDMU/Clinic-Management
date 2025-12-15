@@ -27,14 +27,24 @@ interface TransactionsResponse {
 }
 
 export function TransactionsPage() {
+  // Get current date in local timezone
+  const getCurrentDate = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const [dateFrom, setDateFrom] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 7); // Last 7 days
-    return date.toISOString().split("T")[0];
+    const now = new Date();
+    now.setDate(now.getDate() - 6); // Last 7 days including today
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   });
-  const [dateTo, setDateTo] = useState(() => {
-    return new Date().toISOString().split("T")[0];
-  });
+  const [dateTo, setDateTo] = useState(getCurrentDate);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("all");
 

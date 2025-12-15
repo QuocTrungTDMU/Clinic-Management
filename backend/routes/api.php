@@ -111,6 +111,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/billing/invoices/{id}/cancel', [BillingController::class, 'cancelInvoice']); // Hủy hóa đơn
     Route::get('/billing/payment-history', [BillingController::class, 'getPaymentHistory']); // Lịch sử thanh toán
     Route::get('/billing/statistics', [BillingController::class, 'getStatistics']); // Thống kê doanh thu
+    Route::get('/billing/receipt/{id}', [BillingController::class, 'getReceipt']); // In hóa đơn
+    Route::get('/billing/admin-revenue', [BillingController::class, 'getAdminRevenue']); // Tổng hợp doanh thu cho Admin
 
     // VNPay routes
     Route::post('/vnpay/create-payment/{invoiceId}', [App\Http\Controllers\VNPayController::class, 'createPayment']); // Tạo URL thanh toán VNPay
