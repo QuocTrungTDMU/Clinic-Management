@@ -71,9 +71,9 @@ class QueueController extends Controller
             'scheduled' => ['checked_in', 'cancelled', 'no_show'],
             'checked_in' => ['in_progress', 'cancelled', 'no_show'],
             'in_progress' => ['completed', 'cancelled'],
-            'completed' => [], // No transitions from completed
-            'cancelled' => [], // No transitions from cancelled
-            'no_show' => [], // No transitions from no_show
+            'completed' => [],
+            'cancelled' => [],
+            'no_show' => [],
         ];
 
         $currentStatus = $appointment->status;
